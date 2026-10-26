@@ -1,0 +1,309 @@
+# Rankora — Progress Log
+
+## Phase 3 — Keywords & Rank Tracking (2026-10-26)
+
+### Completed
+
+* **Provider abstraction** (`src/lib/providers/`): `KeywordProvider` + `RankProvider` interfaces, **DataForSEO**
+  adapter (keyword ideas, metrics, Google/Bing organic SERP positions; pure request/response mapping), registry
+  returning `null` when credentials are missing, demo provider restricted to Demo Project websites.
+* **Keyword Research**: seed + country + language, related / long-tail / question tabs, sort by volume, difficulty,
+  CPC, A–Z, clusters, intent (provider or clearly marked rule-based), recent searches, 7-day cache, monthly quota,
+  rate limit, CSV export, save selected keywords (optionally tracked / into a group). Metrics are copied from the
+  server-stored provider response.
+* **Saved Keywords**: filters (search, group, tracked, intent), pagination, groups (create/delete, counts, filter),
+  bulk actions (track/untrack, add/remove group, fetch metrics from provider, delete), manual add, CSV import with
+  line-numbered errors, CSV export.
+* **Keyword Detail**: current / previous / best position, last check, metrics with source, monthly volume trend,
+  ranking history chart (inverted axis, gaps = not ranking), snapshot table with sources, target URL + notes,
+  warning when Google ranks a different URL than the target.
+* **Rank Tracker**: Tracked, Top 3 / 10 / 20 / 100, Improved, Dropped, New / Lost, 30-day stacked distribution chart,
+  filters (group, device, position range, movement), table with movement badges, quick “start tracking”,
+  “Check N keywords now” runner, CSV export.
+* **Historical storage**: `keyword_rankings` (one snapshot per keyword per day) + trigger-maintained current/previous/best.
+* **Provider Not Connected** card/badge everywhere live data would appear; Demo Data badges on demo results.
+* **APIs**: `POST|GET /api/sites/[id]/rank-check`, `GET /api/cron/ranks`, `GET /api/sites/[id]/keywords/export`,
+  `GET /api/keyword-research/[queryId]/export`.
+
+### Files changed
+
+New: `src/lib/providers/{types,dataforseo,locations,demo,registry}.ts`, `src/lib/keywords/{utils,csv,service,site-access}.ts`,
+`src/lib/actions/keywords.ts`, `src/components/keywords/{provider-not-connected,badges,rank-check-runner}.tsx`,
+`src/components/charts/rank-charts.tsx`, pages `keyword-research`, `keywords`, `keywords/[keywordId]`, `rank-tracker`,
+API routes above, `supabase/migrations/20261026000007_keywords_tracking.sql`, `scripts/live-keywords-check.mts`,
+`tests/unit/keywords.test.ts`, `tests/db/keywords.test.ts`.
+Changed: `src/lib/navigation.ts`, `package.json`, generated DB types, docs.
+
+### Database changes
+
+Migration `20261026000007_keywords_tracking.sql` (applied live): `keywords.current_position/previous_position/
+best_position/current_url/last_checked_on/rank_source/rank_check_claimed_at/search_volume_trend`; trigger
+`keyword_rankings_refresh` → `refresh_keyword_position()`; backfill; column grants (no client writes of metrics or
+positions); demo keywords read-only; research index.
+
+### Tests performed
+
+| Check | Result |
+|---|---|
+| `npm test` | **212 passed**, 15 files (new: keywords/providers/CSV 18, keywords DB 8) |
+| DataForSEO adapter | location codes, envelope/task errors, null preservation, related/suggestions/overview parsing, SERP matching (subdomains yes, ads no, look-alike domains no), auth header + request body, 401 / network errors |
+| CSV | quotes, escaped quotes, CRLF, BOM, `;`, header aliases, defaults, per-line validation, 500-row cap, metric columns ignored, formula-injection escaping |
+| DB | position trigger (out-of-order inserts, null = not ranking, deletes), demo backfill, clients cannot write metrics/positions/rankings/research, demo keywords read-only, tenant isolation, cross-org group membership blocked |
+| Live DB (`keywords:live-check`) | 14/14: not-connected path, research stored + cache hit + metering, metrics applied with source label, rank batch, no double charge, trigger, claims released, refusal without provider; temporary data deleted |
+| `db:verify` (live) | 15/15 |
+| API (running server) | rank-check / exports without session → 401, bad id → 404, cron without secret → 401, page → login redirect |
+| `lint` / `typecheck` / `build` | clean / clean / success |
+
+### Known limitations
+
+* **No real provider credentials configured** — live search volumes and Google positions are not available until
+  `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` are set; the real DataForSEO API has only been exercised through
+  fixture-based tests, not a live call.
+* Signed-in UI pages not yet viewed in a browser (owner account needed).
+* Clustering is a simple shared-token heuristic; SERP-overlap clustering would need extra provider calls.
+* Rank checks use DataForSEO live (synchronous) endpoints; very large keyword sets would be cheaper with the
+  task-based (async) API.
+* Keyword device/market cannot be edited after creation (delete and re-add instead).
+
+### Next tasks
+
+1. Owner: add DataForSEO credentials (or keep “Provider Not Connected” for the presentation and use the Demo Project).
+2. Phase 4 — Google Search Console & GA4 OAuth integrations.
+
+## Phase 2 — Real Site Audit Engine (2026-10-26)
+
+### Completed
+
+* **Crawler** (`src/lib/crawler/`): resumable, time-boxed engine with phases discovery → crawling →
+  link_check → pagespeed → analyzing. robots.txt parser (RFC 9309: groups, longest match, Allow ties,
+  `*`/`$`, Crawl-delay), XML sitemap + sitemap index parsing, HTTP→HTTPS check, same-site scope (± www),
+  URL normalisation (fragments, default ports, tracking params), asset skipping, exclude globs, depth and
+  page caps, redirect chains (targets queued as their own pages), retries (3 attempts on network errors,
+  429 and 5xx), timeouts, optional external link checks. Every request goes through the SSRF-safe fetcher.
+* **Parser** (`parse-page.ts`, Cheerio): title, meta description, H1/H2 and heading order, canonical
+  (with `<base href>`), robots meta + X-Robots-Tag, indexability, lang, viewport, images/ALT/dimensions,
+  internal/external/nofollow links, JSON-LD/microdata/RDFa types, Open Graph, Twitter, visible word count,
+  content hash, meta refresh.
+* **Analyzer** (`src/lib/audit/analyze.ts`): evaluates all 33 rules from real crawl data with documented
+  populations and thresholds; rules that cannot be evaluated are "not applicable" (never guessed).
+  Scored by the existing weighted engine.
+* **Persistence & lifecycle**: crawl pages/links, job state, audits, checks, issues (open → fixed → reopened,
+  ignored kept), affected pages, website latest score, usage records, audit log.
+* **API**: `POST /api/crawl-jobs/[id]/tick`, `GET /api/crawl-jobs/[id]`, `GET /api/cron/crawl` (CRON_SECRET).
+* **UI**: Site Audit dashboard (live progress, score ring, category scores, Critical/Warning/Opportunity/
+  Passed/N-A filters, expandable checks with explanation + fix + sample URLs, audit history with score
+  deltas, view older audits, Run/Re-run), issue detail (explanation, fix, timeline, affected pages,
+  ignore/reopen), Pages (search, status/indexability filters, pagination, issue counts), page details
+  (metadata checks, content, links in/out, redirect chain, open issues), Technical SEO (robots.txt,
+  sitemaps, HTTPS, status codes, indexability reasons, response-time percentiles, Core Web Vitals).
+* **PageSpeed Insights** client (field data preferred, lab fallback) — used when `PAGESPEED_API_KEY` is set.
+* **Scripts**: `db:migrate`, `db:verify`, `audit:live-check`.
+
+### Files changed
+
+New: `src/lib/crawler/{url,robots,sitemap,parse-page,types,engine,memory-store,supabase-store,fetcher}.ts`,
+`src/lib/audit/{analyze,mappers,service,access,job-access,pagespeed,labels}.ts`, `src/lib/actions/audit.ts`,
+`src/app/api/crawl-jobs/[id]/route.ts`, `src/app/api/crawl-jobs/[id]/tick/route.ts`, `src/app/api/cron/crawl/route.ts`,
+`src/app/app/[org]/sites/[site]/{audit,audit/issues/[issueId],pages,pages/[pageId],technical}/page.tsx`,
+`src/components/audit/audit-runner.tsx`, `supabase/migrations/20261026000006_crawler_state.sql`,
+`scripts/{db-migrate,verify-live-db,live-audit-check}.mts`, `tests/unit/{crawler-parts,parse-page,crawl-engine,analyzer}.test.ts`,
+`tests/db/audit.test.ts`, `tests/stubs/server-only.ts`.
+Changed: `src/lib/navigation.ts` (audit/technical/pages live), `vitest.config.mts`, `package.json`, `.env.example`,
+generated DB types, docs (ARCHITECTURE, DATABASE, SEO-SCORING, SECURITY, ROADMAP, ACADEMIC-DEMO, README).
+
+### Database changes
+
+Migration `20261026000006_crawler_state.sql` (applied to the live project): `crawl_jobs.phase/state/audit_id/heartbeat_at`;
+`crawl_pages.fetch_state/attempts/found_in_sitemap/found_via_link/skip_reason` + frontier index;
+`crawl_links.target_error` + index; `guard_issue_status` trigger; `crawl_compute_inbound(uuid)` (service role only).
+
+### Tests performed
+
+| Check | Result |
+|---|---|
+| `npm test` | **186 passed**, 13 files (new: crawler parts 17, parser 11, crawl engine 15, analyzer 12, audit DB 9) |
+| Crawler protections | real local HTTP server on 127.0.0.1 is never hit; localhost, 169.254.169.254, 10.x, [::1] blocked; private links on crawled pages never fetched; page/depth caps; excludes; robots |
+| Authorization | audit permissions (viewer/demo/inactive), issue status rules, DB: clients can't write crawl tables or mark issues fixed, outsiders see nothing, viewers can't change issues |
+| API (running server) | tick/status without session → 401; bad id → 404; cron without/wrong secret → 401; audit page signed out → login redirect |
+| Live end-to-end | `npm run audit:live-check -- https://books.toscrape.com/ 15`: 15 pages crawled and analyzed in ~20 s, score 74.6, 33 checks, 13 issues; findings spot-checked against the live HTML (empty meta description, H1→H3 skip, robots/sitemap 404, no canonical, no HTTP→HTTPS redirect) — all correct; temporary data deleted |
+| `npm run db:migrate` | 0006 applied |
+| `npm run lint` / `typecheck` / `build` | 0 problems / 0 errors / success |
+
+### Known limitations
+
+* The audit UI pages have **not been viewed in a browser while signed in** (requires the owner's account);
+  they compile and their queries run against the live schema via the end-to-end script.
+* No Playwright E2E yet.
+* Gzipped sitemaps (`.xml.gz`) are skipped (reported). JavaScript-rendered content is not executed.
+* Background progress without an open audit page needs a scheduler hitting `/api/cron/crawl`
+  (Vercel Hobby allows only daily cron).
+* Response times are measured from the crawler location (Rankora's server), not real users.
+* `PAGESPEED_API_KEY` is not configured, so Core Web Vitals show "not applicable".
+* Image file sizes are not measured (only presence of ALT and width/height attributes).
+
+### Next tasks
+
+1. Owner signs in and runs an audit on their own website from the UI; fix anything found.
+2. Add a free PageSpeed Insights API key to enable Core Web Vitals.
+3. Playwright E2E: register → onboarding → audit → issue → page detail.
+4. Phase 3 — keywords & rank tracking (provider abstraction).
+
+## Live database setup (2026-10-26)
+
+* Supabase project `rankora` (region ap-southeast-1) created by the project owner; keys in `.env.local` (git-ignored).
+* New scripts: `npm run db:migrate` (applies `supabase/migrations/*.sql`, records versions in
+  `supabase_migrations.schema_migrations`, compatible with the Supabase CLI) and `npm run db:verify`
+  (live checks inside a rolled-back transaction). Scripts now run with `tsx`.
+* All 5 migrations applied to the live database.
+* `npm run db:verify` — **15/15 passed** on the live database: 37 tables, RLS on every public table, 64 policies,
+  plans seeded, profile trigger, owner sees own site, a second user cannot insert/update/delete another org's website,
+  sees 0 rows of the other org in all 32 tenant tables, anon can read only plans, demo project created and labelled
+  `demo`, demo invisible to other users. Nothing persisted.
+* Data API check: publishable key reads `plans`; anon gets `permission denied` on `websites`.
+* App rebuilt with real keys: register/login pages load without the "not configured" notice; `/app` redirects to
+  `/login?next=/app` via the proxy.
+* Not yet done: a real sign-up → onboarding → dashboard → Demo Project run in the browser (needs the owner to register).
+
+## Phase 1b — Foundation completion (2026-10-26)
+
+### Completed
+
+* **Password reset**: `/forgot-password` (no account enumeration) → recovery link via `/auth/callback` →
+  `/reset-password` (requires the recovery session, password + confirmation). "Forgot password?" link on sign-in.
+* **Account settings** (`/app/[org]/account`): edit name, change password, list of your organizations and roles.
+  Linked from the user menu.
+* **Top navigation**: website selector moved to the top bar (keeps the current module when switching sites);
+  user menu with Account settings and Sign out. Sidebar keeps the organization switcher and module navigation.
+* **Demo Project**: "Open Demo Project" on onboarding and in the organization switcher. Creates one separate demo
+  organization per user with a fictional `.example` store, a site audit scored by the real engine, 90 days of
+  Search Console / organic traffic sample data, query/page breakdowns and 10 tracked keywords with rank history.
+  Purple banner on every demo page and **Demo Data** badges on every card, chart and table fed by demo rows.
+  Demo workspace is read-only for websites; the owner can remove it from Organization settings.
+* **Dashboard** now covers every metric in the brief, each with an empty state until real or demo data exists:
+  SEO health score, critical/warning/opportunity issues, tracked pages, clicks, impressions, CTR, average position,
+  organic sessions and users (with change vs previous 28 days), search performance trend, organic traffic trend,
+  keyword ranking trend (keywords in top 10 per day), tracked keywords with improved/dropped/new/lost and
+  Top 3/10/20/100 distribution, top queries, top pages, recent issues, recommended actions.
+
+### Files changed
+
+New: `src/app/(auth)/forgot-password/page.tsx`, `src/app/(auth)/reset-password/page.tsx`,
+`src/app/app/[org]/account/{page,profile-form}.tsx`, `src/app/onboarding/demo/page.tsx`,
+`src/components/app/site-switcher.tsx`, `src/lib/demo/generate.ts`, `src/lib/dashboard/metrics.ts`,
+`supabase/migrations/20261026000005_demo_project.sql`, `tests/db/demo.test.ts`, `tests/unit/demo.test.ts`,
+`tests/unit/dashboard-metrics.test.ts`.
+Changed: `src/app/(auth)/{actions,auth-forms}.ts(x)`, `src/app/app/[org]/layout.tsx`, `…/settings/page.tsx`,
+`…/websites/page.tsx`, `…/websites/new/page.tsx`, `…/sites/[site]/dashboard/page.tsx`, `src/app/onboarding/page.tsx`,
+`src/components/app/{sidebar,user-menu}.tsx`, `src/lib/actions/workspace.ts`, `src/lib/validation/schemas.ts`,
+`src/lib/supabase/database.types.ts` (regenerated), `tests/db/rls.test.ts`, `tests/unit/validation.test.ts`, docs.
+
+### Database changes
+
+Migration `20261026000005_demo_project.sql`: `create_demo_project(jsonb)` (SECURITY DEFINER, one per user,
+forces demo flags and `source = 'demo'`, ignores payload ids, size caps, granted to `authenticated` only);
+`websites_insert` policy now also rejects inserts into demo organizations. No new tables (still 37).
+
+### Tests performed
+
+| Check | Result |
+|---|---|
+| `npm test` | **122 passed**, 8 files |
+| New: all-table isolation | for every table with `organization_id` (≥ 26 tables), another user sees **0** of Alice's rows |
+| New: demo project (DB) | creates demo org/site owned by caller; all metric rows `demo`; stored score = engine score; 33 checks; idempotent; invisible to other users; real sites can't be added; oversize payload and anonymous calls rejected; owner removal cascades everything |
+| New: demo payload (unit) | deterministic, `.example` domain, score recomputes identically, size limits, consistent metrics |
+| New: dashboard metrics (unit) | top-N aggregation with weighted position, improved/dropped/new/lost, distribution, top-10 per day |
+| New: password schema | mismatch, weak password |
+| `npm run lint` | 0 problems |
+| `npm run typecheck` | 0 errors |
+| `npm run build` | success, 30 routes |
+| Browser smoke (no Supabase keys) | login shows "Forgot password?"; `/forgot-password` renders; `/reset-password` without a session shows "link invalid or expired"; `/onboarding/demo` redirects to login with `next` |
+
+### Known limitations
+
+* Still **not run against a live Supabase project**: the signed-in pages (dashboard, demo, account, onboarding) build and
+  their SQL is tested in PGlite, but have not been rendered with real auth.
+* The password-reset email flow depends on Supabase email settings (Site URL, redirect URLs, SMTP for production volume).
+* Dashboard aggregates top queries/pages in the app from at most 5,000 rows; a SQL aggregate (RPC/view) is needed for large sites.
+* No email change, MFA or team invitations yet.
+
+### Next tasks
+
+1. Apply migrations to a Supabase project; run register → onboarding → dashboard → Demo Project → reset password end to end.
+2. Add Playwright E2E for those flows.
+3. Start Phase 2 (crawler and site audit).
+
+## Phase 1 — Foundation (2026-10-26)
+
+### Completed
+
+* **Project setup**: Next.js 16.4 App Router, React 19, TypeScript strict, Tailwind 4, ESLint, Vitest.
+  Cache Components disabled on purpose (see ARCHITECTURE). Security headers in `next.config.ts`.
+* **Database**: 4 migrations covering all 30 required tables plus `plans`, `platform_admins`, `system_events`,
+  `crawl_links`, `seo_issue_pages`, `oauth_states` and `keyword_research_queries` (37 public tables).
+  RLS on every table, `private` helper functions, column grants, composite tenant FKs, triggers
+  (profile on signup, website settings, last-owner guard, owner-grant guard, task assignee check,
+  `completed_at`), RPCs `create_organization` and `rate_limit_hit`, seeded plan catalog.
+* **Generated DB types** from the migrations (`npm run db:types`).
+* **Auth**: register, sign in, sign out, email confirmation callback, session refresh in `proxy.ts`,
+  open-redirect-safe `next` handling, "Supabase not configured" state.
+* **Data Access Layer** with role checks (`requireOrg`, `requireWebsite`).
+* **Onboarding**: organization → website (country, language, preferred domain, DNS + SSRF validation,
+  plan limit) → next steps → dashboard.
+* **App shell**: dark sidebar with org switcher, site switcher, grouped modules (built vs "Soon"),
+  mobile drawer, user menu, loading skeleton and error boundary.
+* **Pages**: site dashboard (real data only; integration-aware empty states, Demo Data labelling built in),
+  websites list, add website, site settings (details, crawl configuration, delete with confirmation),
+  organization settings (rename, members), plan & billing (limits, usage), admin console (gated, aggregates only),
+  honest "Planned · Phase N" page for every unbuilt module.
+* **Marketing site**: home, features, SEO Audit, Keyword Research, Analytics, Rank Tracking, pricing, about, contact.
+* **Core libraries**: SSRF-safe URL validation and fetch (connect-time DNS check, manual redirects, limits),
+  AES-256-GCM token encryption, SEO rule catalog (33 rules) and weighted scoring engine.
+* **Design system**: semantic tokens, Button, Card, Badge (severity, Demo Data), form controls with errors,
+  StatCard, ScoreRing, Empty / Error / Planned states, Skeleton, PageHeader, Recharts TrendChart.
+* **Docs**: README, ARCHITECTURE, DATABASE, SEO-SCORING, INTEGRATIONS, SECURITY, ROADMAP, ACADEMIC-DEMO, PROGRESS.
+
+### Files changed
+
+`package.json`, `next.config.ts`, `tsconfig.json`, `vitest.config.mts`, `.env.example`, `.gitignore`,
+`supabase/migrations/*.sql`, `scripts/gen-db-types.mts`, `src/proxy.ts`, `src/app/**`, `src/components/**`,
+`src/lib/**`, `tests/**`, `docs/**`, `README.md`.
+
+### Database changes
+
+Initial schema (migrations `20261025000001` to `20261025000004`). Not yet applied to a hosted Supabase project.
+
+### Tests performed
+
+| Check | Result |
+|---|---|
+| `npm test` (Vitest) | **100 passed** — 5 files: scoring (11), url-safety (43), crypto (5), validation (23), RLS/DB (18) |
+| RLS suite on PGlite (Postgres 17) | migrations apply cleanly; tenant isolation, viewer read-only, owner guards, token column protection, anon lockout, rate limiting all verified |
+| `npm run lint` | 0 problems |
+| `tsc --noEmit` | 0 errors |
+| `npm run build` | success (26 routes) |
+| Browser smoke test (no Supabase keys) | home, login, register render; protected route redirects to login; no horizontal scroll at 375 px |
+
+A test caught one real bug during the phase: emails with surrounding whitespace failed validation
+because the email check ran before trimming. Fixed.
+
+### Known limitations
+
+* **Not yet tested against a live Supabase project.** Sign-up, onboarding and the authenticated pages
+  compile and the SQL is verified in PGlite, but the end-to-end flow has not been run with real auth.
+  PGlite stubs `auth.users`/`auth.uid()`; Supabase-specific behaviour (e.g. default grants) may differ slightly.
+* No end-to-end (Playwright) tests yet — planned for Phase 2 once a Supabase test project is available.
+* Audit, keywords, rankings, GSC, GA4, content, tasks, competitors, backlinks and reports are schema-only
+  and show "Planned" pages.
+* `audit_logs` writes are skipped when `SUPABASE_SECRET_KEY` is not set.
+* No team invitations, CSP, MFA or dark mode yet.
+* The Demo Project is not seeded yet (Phase 2).
+
+### Next tasks (Phase 2 — Crawler & Site Audit)
+
+1. Apply migrations to a Supabase project and run the auth/onboarding flow end to end.
+2. Crawl job creation action (role + plan + rate limit) and cron worker with `SKIP LOCKED` batches.
+3. robots.txt parser, sitemap.xml parser (index + gzip), URL normalisation, frontier with depth/page limits.
+4. Cheerio page analyzer and the 33 rule evaluators; persist checks, score and issue lifecycle.
+5. Site Audit, Technical SEO and Pages UIs; PageSpeed Insights client.
+6. Demo Project seed script (labelled `demo` source).
+7. Crawler tests against fixture HTML and a local test server; Playwright E2E for auth + onboarding.

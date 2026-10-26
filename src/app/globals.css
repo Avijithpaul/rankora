@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/*
+ * Rankora design tokens. Components use semantic utilities
+ * (bg-surface, text-muted, border-line, bg-brand …), never raw hex values.
+ */
+:root {
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --line: #e3e6eb;
+  --line-strong: #cfd4dc;
+  --ink: #0f1729;
+  --ink-2: #344054;
+  --muted: #667085;
+  --brand: #2445d6;
+  --brand-hover: #1b37b3;
+  --brand-soft: #eaefff;
+  --brand-ink: #1a2f8f;
+  --sidebar: #0d1424;
+  --sidebar-2: #162036;
+  --sidebar-ink: #c9d1e3;
+
+  --critical: #d92d20;
+  --critical-soft: #fef3f2;
+  --warning: #b54708;
+  --warning-soft: #fffaeb;
+  --opportunity: #175cd3;
+  --opportunity-soft: #eff8ff;
+  --success: #067647;
+  --success-soft: #ecfdf3;
+  --demo: #6941c6;
+  --demo-soft: #f4f3ff;
+
+  --chart-1: #2445d6;
+  --chart-2: #12b76a;
+  --chart-3: #f79009;
+  --chart-4: #7a5af8;
+  --chart-5: #ee46bc;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-2: var(--sidebar-2);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-opportunity: var(--opportunity);
+  --color-opportunity-soft: var(--opportunity-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-demo: var(--demo);
+  --color-demo-soft: var(--demo-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

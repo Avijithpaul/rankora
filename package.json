@@ -1,0 +1,55 @@
+{
+  "name": "rankora",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:db": "vitest run tests/db",
+    "db:types": "tsx scripts/gen-db-types.mts",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.mts",
+    "db:verify": "tsx --env-file=.env.local scripts/verify-live-db.mts",
+    "audit:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-audit-check.mts",
+    "keywords:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-keywords-check.mts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
+    "cheerio": "^1.2.0",
+    "clsx": "^2.1.1",
+    "ipaddr.js": "^2.5.0",
+    "lucide-react": "^1.61.0",
+    "next": "16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "undici": "^8.12.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.3",
+    "pg": "^8.23.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}
