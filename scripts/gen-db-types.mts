@@ -145,7 +145,25 @@ for (const f of fns) {
       const [name, ...type] = a.replace(/ DEFAULT .*/i, "").split(/\s+/);
       return `${name}: ${pgArgType(type.join(" "))}`;
     });
-  lines.push(`      ${f.name}: { Args: { ${args.join("; ")} }; Returns: ${pgArgType(f.result)} };`);
+  const table = /^TABLE\((.*)\)$/i.exec(f.result.trim());
+  const returns = table
+    ? `{ ${table[1]
+        .split(",")
+        .map((c) => c.trim().split(/\s+/))
+        .map(([name, ...type]) => `${name}: ${pgArgType(type.join(" "))} | null`)
+        .join("; ")} }[]`
+    : pgArgType(f.result);
+  const argList = (f.args ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean)
+    .map((a) => {
+      const optional = /\bDEFAULT\b/i.test(a);
+      const [name, ...type] = a.replace(/ DEFAULT .*/i, "").split(/\s+/);
+      return `${name}${optional ? "?" : ""}: ${pgArgType(type.join(" "))}`;
+    });
+  void args;
+  lines.push(`      ${f.name}: { Args: { ${argList.join("; ")} }; Returns: ${returns} };`);
 }
 lines.push(`    };`);
 lines.push(`    Enums: {`);

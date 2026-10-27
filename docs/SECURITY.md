@@ -68,6 +68,21 @@
 * Rank-check and export endpoints resolve the website as the user (RLS) before any service-role work; cron requires `CRON_SECRET`.
 * CSV export neutralises formula injection (`=`, `+`, `-`, `@` prefixes).
 
+## Google OAuth (Phase 4)
+
+* Read-only scopes only (`webmasters.readonly`, `analytics.readonly`, `openid email`).
+* `state`: 32 random bytes, stored as SHA-256 only, 10-minute expiry, **single use** (atomic claim), bound to the
+  signed-in user, organization and website; a different user, reused, expired or unknown state is rejected.
+* **PKCE S256**; the verifier is stored encrypted and never leaves the server.
+* Tokens: AES-256-GCM at rest, never selectable by clients (column grants), never sent to the browser; refreshed
+  server-side; revoked/invalid refresh tokens mark the connection expired and wipe the access token.
+* The callback re-checks that the user is still member+ of the website; property selection is re-validated against
+  Google's live property list (a user cannot attach a property their Google account cannot access).
+* Fixed redirect URI from `NEXT_PUBLIC_SITE_URL`; post-connect redirects use a stored, validated relative path.
+* Disconnect revokes at Google and deletes ciphertext; audit log entries for connect / property change / disconnect / revoke.
+* Synced metrics are server-written only; clients cannot insert or update them. Aggregation functions are
+  SECURITY INVOKER so RLS still scopes every query to the user's organizations.
+
 ## Abuse and cost controls
 
 * `rate_limit_hit()` (DB-backed, per user) for expensive operations: crawls, keyword lookups, PageSpeed calls.

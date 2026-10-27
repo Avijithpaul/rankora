@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Check, Minus, Wrench, X } from "lucide-react";
 import { requireWebsite } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
+import { selectAll } from "@/lib/supabase/paginate";
 import type { CrawlState } from "@/lib/crawler/types";
 import { evaluateCoreWebVitals, THRESHOLDS } from "@/lib/audit/analyze";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -56,13 +57,16 @@ export default async function TechnicalPage({ params }: PageProps<"/app/[org]/si
   }
 
   const state = (job.state ?? {}) as CrawlState;
-  const { data: rows } = await supabase
-    .from("crawl_pages")
-    .select("fetch_state, status_code, is_indexable, indexability_reason, response_time_ms, redirect_chain")
-    .eq("crawl_job_id", job.id)
-    .neq("fetch_state", "pending")
-    .limit(10000);
-  const pages = rows ?? [];
+  // page through the crawl (Data API returns at most 1000 rows per request)
+  const pages = await selectAll((from, to) =>
+    supabase
+      .from("crawl_pages")
+      .select("id, fetch_state, status_code, is_indexable, indexability_reason, response_time_ms, redirect_chain")
+      .eq("crawl_job_id", job.id)
+      .neq("fetch_state", "pending")
+      .order("id")
+      .range(from, to),
+  );
   const bucket = (lo: number, hi: number) => pages.filter((p) => p.fetch_state === "fetched" && (p.status_code ?? 0) >= lo && (p.status_code ?? 0) < hi).length;
   const statusDist = [
     { label: "2xx OK", n: bucket(200, 300), tone: "success" as const },

@@ -63,3 +63,20 @@ describe("topNByDay / relativeChange", () => {
     expect(relativeChange(120, 100)).toBeCloseTo(0.2);
   });
 });
+
+describe("movementFromKeywords", () => {
+  const k = (cur: number | null, prev: number | null, hasPrev = true, checked = true) => ({
+    current_position: cur,
+    previous_position: prev,
+    last_checked_on: checked ? "2026-10-02" : null,
+    previous_checked_on: hasPrev ? "2026-10-01" : null,
+  });
+  it("matches snapshot-based movement and distinguishes first checks", async () => {
+    const { movementFromKeywords, keywordMovement } = await import("@/lib/dashboard/metrics");
+    const m = movementFromKeywords([k(4, 9), k(12, 3), k(40, null), k(null, 15), k(2, 2), k(5, null, false), k(null, null, false, false)]);
+    expect(m).toMatchObject({ improved: 1, dropped: 1, new: 1, lost: 1, unchanged: 1 });
+    expect(m.distribution).toEqual({ top3: 1, top10: 2, top20: 1, top100: 1, notRanking: 1 });
+    expect(keywordMovement(k(5, null, false))).toBe("first");
+    expect(keywordMovement(k(null, null, false, false))).toBe("unchecked");
+  });
+});

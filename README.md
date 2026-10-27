@@ -3,7 +3,7 @@
 **All-in-One SEO Analyze, Fix & Optimization Platform**
 
 Rankora is a multi-tenant SEO SaaS. Teams add their websites, run a real server-side crawl and
-transparent SEO audit, research keywords, track Google rankings, and (soon) connect Google Search
+transparent SEO audit, research keywords, track Google rankings, and connect Google Search
 Console and GA4 — all in one workspace. It is built both as a Web Development academic project and as
 a foundation for a commercial product.
 
@@ -20,7 +20,7 @@ a foundation for a commercial product.
 | 1 | Foundation: auth, password reset, organizations & roles, websites, onboarding, app shell, dashboard, Demo Project, RLS | ✅ Done |
 | 2 | Site Audit: SSRF-safe crawler, robots.txt, sitemaps, 33-rule analyzer, weighted score, issues, pages, Technical SEO | ✅ Done |
 | 3 | Keywords: provider abstraction (DataForSEO), keyword research, saved keywords, groups, rank tracker, history, CSV | ✅ Done |
-| 4 | Google Search Console & GA4 (OAuth) | Planned |
+| 4 | Google Search Console & GA4: secure OAuth, property selection, sync, Analytics + Search Performance sections | ✅ Done |
 | 5 | Content Optimizer & SEO Tasks | Planned |
 | 6 | Competitors, Backlinks, Reports | Planned |
 | 7 | Billing (Stripe), invitations, admin console, hardening | Planned |
@@ -42,6 +42,10 @@ Details: [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/ROADMAP.md](docs/ROADMAP.
 - **Keywords** — keyword research (related, long-tail, questions, intent, clusters), saved keywords, groups, bulk
   actions, CSV import/export, keyword detail with ranking history, Rank Tracker (Top 3/10/20/100, improved,
   dropped, new, lost, distribution chart, daily checks).
+- **Google integrations** — connect Search Console and GA4 with read-only OAuth, choose properties, automatic sync;
+  Search Performance (overview, queries, pages, countries, devices) and Analytics (overview, traffic, pages,
+  acquisition, countries, devices) with date ranges and comparison periods.
+- **Social sign-in** — Google and GitHub sign-in/sign-up via Supabase (enable the providers in Supabase).
 - **Demo Project** — a separate, read-only workspace with sample data labelled **Demo Data** for presentations.
 
 ## Tech stack
@@ -99,11 +103,11 @@ Open http://localhost:3000, register, and follow onboarding. Choose **Open Demo 
 | `NEXT_PUBLIC_SITE_URL` | yes | `http://localhost:3000` locally |
 | `SUPABASE_SECRET_KEY` | yes for audits | server-only; crawler results, audit log, admin |
 | `DATABASE_URL` | for scripts | Session pooler URI for migrations and live checks |
-| `TOKEN_ENCRYPTION_KEY` | Phase 4 | 32 random bytes, base64 (encrypts OAuth tokens) |
+| `TOKEN_ENCRYPTION_KEY` | for Google | 32 random bytes, base64 (encrypts OAuth tokens) |
 | `CRON_SECRET` | for background jobs | protects `/api/cron/crawl` and `/api/cron/ranks` |
 | `PAGESPEED_API_KEY` | optional | Core Web Vitals in audits |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | optional | live keyword data and rank tracking |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Phase 4 | Search Console + GA4 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Search Console + GA4 OAuth (redirect URI `<site>/api/integrations/google/callback`) |
 
 Server-only values must never be prefixed with `NEXT_PUBLIC_`. `.env.local` is git-ignored.
 
@@ -128,6 +132,7 @@ insert into public.platform_admins (user_id, role) values ('<your auth user id>'
 | `npm run db:verify` | live RLS / tenant-isolation checks (rolled back) |
 | `npm run db:types` | regenerate `src/lib/supabase/database.types.ts` from migrations |
 | `npm run audit:live-check -- <url> <pages>` | real audit end-to-end with a temporary org, then cleanup |
+| `npm run google:live-check` | Google OAuth/sync pipeline on the live DB with simulated Google APIs, then cleanup |
 | `npm run keywords:live-check` | keyword + rank pipeline on the live DB with a labelled fake provider, then cleanup |
 
 Only run `audit:live-check` against sites you own or that allow crawling.
@@ -161,7 +166,7 @@ docs/                     architecture, database, scoring, integrations, securit
 npm run check
 ```
 
-212 automated tests cover the scoring engine, crawler (including SSRF protection against a real local server),
+246 automated tests cover the scoring engine, crawler (including SSRF protection against a real local server),
 HTML parser, robots/sitemap parsing, analyzer rules, provider adapters, CSV handling, validation, encryption, and
 database security (RLS, column privileges, triggers, tenant isolation). Live-database scripts verify the same
 guarantees against Supabase.
@@ -170,7 +175,7 @@ guarantees against Supabase.
 
 1. Import the repository in Vercel and add the environment variables above (server-only ones unprefixed).
 2. Set `NEXT_PUBLIC_SITE_URL` to the production URL and add `<url>/auth/callback` to Supabase redirect URLs.
-3. Schedule `GET /api/cron/crawl` (every minute on Pro) and `GET /api/cron/ranks` (daily) with header
+3. Schedule `GET /api/cron/crawl` (every minute on Pro), `GET /api/cron/ranks` and `GET /api/cron/google-sync` (daily) with header
    `Authorization: Bearer $CRON_SECRET`. On Vercel Hobby, crons run at most daily; audits still progress while
    the audit page is open.
 

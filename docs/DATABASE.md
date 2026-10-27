@@ -11,6 +11,8 @@ PostgreSQL on Supabase. Migrations live in `supabase/migrations/` and are applie
 | `…0005_demo_project.sql` | `create_demo_project(jsonb)` RPC; websites cannot be added to a demo organization |
 | `…0006_crawler_state.sql` | crawl job phases/state/heartbeat, crawl_pages as resumable frontier (`fetch_state`, attempts, sitemap/link discovery flags), external link errors, issue-status guard trigger, `crawl_compute_inbound()` |
 | `…0007_keywords_tracking.sql` | keyword current/previous/best position + ranking URL maintained by trigger from `keyword_rankings`; rank-check claim column; volume trend; **column grants** so clients cannot write metrics or positions; demo keywords read-only |
+| `…0008_oauth_profiles.sql` | profile name/avatar from Google & GitHub sign-in metadata |
+| `…0009_google_integrations.sql` | Google connection status/account id (one active per org + account), integration sync state/claims, date indexes, SQL aggregations `gsc_breakdown` / `ga_breakdown` / `rank_distribution` (security invoker), `keywords.previous_checked_on` |
 
 ## Entity relationships
 

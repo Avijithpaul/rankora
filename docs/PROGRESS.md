@@ -1,5 +1,79 @@
 # Rankora — Progress Log
 
+## Phase 4 — Google Search Console & GA4 (2026-10-27)
+
+### Completed
+
+* **Secure OAuth** (`src/lib/google/oauth.ts`, `/api/integrations/google/{start,callback}`): authorization code + PKCE S256,
+  hashed single-use state bound to user/org/website with 10-minute expiry, read-only scopes, offline access,
+  encrypted token storage, automatic refresh, revocation, per-organization connections per Google account.
+* **Property selection**: live lists from the Search Console API and GA4 Admin API, suggested match for the
+  website's domain, server-side re-validation of the chosen property.
+* **Sync engine** (`src/lib/google/sync.ts`): 5 Search Console steps + 6 GA4 steps, 180-day initial import and
+  5-day incremental sync, resumable time-boxed ticks with claims, idempotent re-sync, retry on 429/5xx/network,
+  clear error states for expired tokens and lost permissions. API: `POST|GET /api/integrations/[id]/sync`,
+  `GET /api/cron/google-sync`.
+* **Integrations page**: status per service, connect / reconnect, property picker, sync progress, Sync now,
+  Full re-sync, disconnect (optionally deleting imported data), connected Google accounts with Revoke (admins),
+  status of PageSpeed and DataForSEO.
+* **Search Performance**: Overview (clicks, impressions, CTR, average position with deltas, daily chart, top
+  queries/pages), Queries, Pages, Countries, Devices — date presets, custom ranges, previous-period or
+  year-over-year comparison, per-row deltas.
+* **Analytics**: Overview (users, new users, sessions, views, engaged sessions, engagement rate, average engagement
+  time, organic sessions), Traffic, Pages (top pages + landing pages), Acquisition (channels), Countries, Devices.
+* **Honest states** everywhere: not configured, not connected, choose property, first import, error/reconnect,
+  rate-limited, no data, Demo Data.
+* **Row-cap fix (bug found this phase)**: the Supabase Data API returns at most 1,000 rows per request. Dashboard top
+  queries/pages, Rank Tracker distribution/movement, Technical SEO stats, keyword CSV export and the saved-keywords
+  group filter could silently under-count on large sites. Fixed with SQL aggregations (`gsc_breakdown`,
+  `ga_breakdown`, `rank_distribution`), `keywords.previous_checked_on`, a paging helper and inner-join filters.
+* Social sign-in (Google / GitHub) from the previous step is included in this phase's changes.
+
+### Files changed
+
+New: `src/lib/google/{errors,oauth,http,search-console,analytics,connections,sync,integration-access}.ts`,
+`src/lib/analytics/{ranges,source}.ts`, `src/lib/actions/integrations.ts`, `src/lib/supabase/paginate.ts`,
+`src/components/analytics/controls.tsx`, `src/components/integrations/sync-runner.tsx`,
+pages `integrations`, `search-performance`, `analytics`, API routes `integrations/google/start|callback`,
+`integrations/[id]/sync`, `cron/google-sync`, migrations `…0008_oauth_profiles.sql`, `…0009_google_integrations.sql`,
+`scripts/live-google-check.mts`, tests `tests/unit/google.test.ts`, `tests/db/google.test.ts`.
+Changed: dashboard, rank tracker, technical SEO, saved keywords, keyword export, navigation, `scripts/gen-db-types.mts`
+(TABLE-returning functions), `src/lib/dashboard/metrics.ts`, docs.
+
+### Database changes
+
+`…0008`: profile name/avatar from social sign-in. `…0009`: `oauth_connections.provider_account_id/status` + unique
+active connection per org/account; `integrations.sync_state/last_sync_started_at/sync_claimed_at`; date indexes on
+synced tables; `gsc_breakdown()`, `ga_breakdown()`, `rank_distribution()` (security invoker, authenticated only);
+`keywords.previous_checked_on` + updated position trigger. Both applied to the live project.
+
+### Tests performed
+
+| Check | Result |
+|---|---|
+| `npm test` | **246 passed**, 19 files (new: Google unit 18, Google DB 7, OAuth profile 4, social sign-in 4, movement 1) |
+| OAuth boundaries | PKCE RFC 7636 vector, auth URL (read-only scopes, offline, S256), state checks (unknown/reused/expired/other user/provider), code exchange body, `invalid_grant` → reconnect, network errors retryable, API error mapping |
+| API clients | Search Console paging (25k rows/page), site suggestion, GA4 report flattening, malformed property ids rejected before any call |
+| DB | breakdown functions aggregate correctly and respect RLS (other tenants get 0 rows, anon denied), tokens/states unreadable, clients cannot write integrations or synced data, rank distribution, previous_checked_on |
+| Live DB with simulated Google (`google:live-check`) | 16/16: refresh + encrypted storage, full GSC (5 steps) and GA4 (6 steps) sync, rows labelled gsc/ga4, SQL breakdowns, idempotent re-sync, revoked token → expired + reconnect flag, sync stops cleanly, disconnect revokes and wipes tokens |
+| `db:verify`, `keywords:live-check` (live) | 15/15, 14/14 |
+| API (running server) | start without session → 401; forged state → rejected (`unknown_state`); sync for unknown/other integration → 404; cron without secret → 401; pages signed out → login |
+| `lint` / `typecheck` / `build` | clean / clean / success |
+
+### Known limitations
+
+* **Not yet run against real Google**: no `GOOGLE_CLIENT_ID/SECRET` configured, so the consent screen, real
+  property lists and real API responses have not been exercised; Google was simulated in tests.
+* Signed-in pages still not viewed in a browser by the owner.
+* GA4 users over multi-day ranges are summed daily users (stated in the UI).
+* Country rows use Google's codes/names as returned (GSC ISO alpha-3, GA4 country names).
+* Background sync relies on a scheduler calling `/api/cron/google-sync` (daily on Vercel Hobby).
+
+### Next tasks
+
+1. Owner: create the Google OAuth client, enable the three APIs, add the redirect URI and env vars; connect a real property.
+2. Phase 5 — Content Optimizer & SEO Tasks.
+
 ## Phase 3 — Keywords & Rank Tracking (2026-10-26)
 
 ### Completed

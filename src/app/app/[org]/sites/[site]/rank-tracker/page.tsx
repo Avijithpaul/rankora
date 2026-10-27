@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { addKeywordsAction } from "@/lib/actions/keywords";
 import { getRankProvider } from "@/lib/providers/registry";
 import { dueKeywordCount, trackingRoom } from "@/lib/keywords/service";
-import { rankMovement, type RankSnapshot } from "@/lib/dashboard/metrics";
-import { positionBucket } from "@/lib/keywords/utils";
+import { keywordMovement, movementFromKeywords, type Movement } from "@/lib/dashboard/metrics";
+import { selectAll } from "@/lib/supabase/paginate";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
 import { Badge, DemoDataBadge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -29,18 +29,7 @@ function daysAgo(n: number) {
   return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
 }
 
-type Movement = "improved" | "dropped" | "new" | "lost" | "unchanged" | "first";
-
-function classify(list: RankSnapshot[]): Movement {
-  if (list.length < 2) return "first";
-  const [prev, cur] = list.slice(-2);
-  if (prev.position === null && cur.position !== null) return "new";
-  if (prev.position !== null && cur.position === null) return "lost";
-  if (prev.position !== null && cur.position !== null) return cur.position < prev.position ? "improved" : cur.position > prev.position ? "dropped" : "unchanged";
-  return "unchanged";
-}
-
-const MOVEMENT_LABEL: Record<Movement, string> = { improved: "Improved", dropped: "Dropped", new: "New", lost: "Lost", unchanged: "Unchanged", first: "First check" };
+const MOVEMENT_LABEL: Record<Movement, string> = { improved: "Improved", dropped: "Dropped", new: "New", lost: "Lost", unchanged: "Unchanged", first: "First check", unchecked: "Not checked" };
 
 export default async function RankTrackerPage({ params, searchParams }: PageProps<"/app/[org]/sites/[site]/rank-tracker">) {
   const { org: orgSlug, site: siteId } = await params;
@@ -57,41 +46,26 @@ export default async function RankTrackerPage({ params, searchParams }: PageProp
   const bucketFilter = str("bucket", "all");
 
   const since = daysAgo(30);
-  const [{ data: keywords }, { data: groups }, { data: ranks }] = await Promise.all([
-    supabase
-      .from("keywords")
-      .select("id, keyword, device, country_code, search_volume, target_url, current_position, previous_position, best_position, current_url, last_checked_on, keyword_group_members(group_id)")
-      .eq("website_id", website.id)
-      .eq("is_tracked", true)
-      .order("current_position", { ascending: true, nullsFirst: false })
-      .limit(2500),
+  // Keywords are read page by page (Data API returns max 1000 rows per request);
+  // the daily distribution is aggregated in SQL.
+  const [all, { data: groups }, { data: dist }] = await Promise.all([
+    selectAll((from, to) =>
+      supabase
+        .from("keywords")
+        .select("id, keyword, device, country_code, search_volume, target_url, current_position, previous_position, previous_checked_on, best_position, current_url, last_checked_on, rank_source, keyword_group_members(group_id)")
+        .eq("website_id", website.id)
+        .eq("is_tracked", true)
+        .order("current_position", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
     supabase.from("keyword_groups").select("id, name").eq("website_id", website.id).order("name"),
-    supabase
-      .from("keyword_rankings")
-      .select("keyword_id, checked_on, position, source, keywords!inner(website_id, is_tracked)")
-      .eq("keywords.website_id", website.id)
-      .eq("keywords.is_tracked", true)
-      .gte("checked_on", since)
-      .order("checked_on")
-      .limit(20000),
+    supabase.rpc("rank_distribution", { p_site: website.id, p_from: since }),
   ]);
 
-  const all = keywords ?? [];
-  const snaps = (ranks ?? []) as unknown as (RankSnapshot & { source: string })[];
-  const isDemo = website.is_demo || snaps.some((s) => s.source === "demo");
-  const movement = rankMovement(snaps);
-  const byKeyword = new Map<string, RankSnapshot[]>();
-  for (const s of snaps) byKeyword.set(s.keyword_id, [...(byKeyword.get(s.keyword_id) ?? []), s]);
-
-  // Daily distribution (exclusive buckets) for the chart
-  const days = new Map<string, DistributionPoint>();
-  for (const s of snaps) {
-    const d = days.get(s.checked_on) ?? { date: s.checked_on, top3: 0, top10: 0, top20: 0, top100: 0 };
-    const b = positionBucket(s.position);
-    if (b !== "none") d[b]++;
-    days.set(s.checked_on, d);
-  }
-  const distribution = [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const isDemo = website.is_demo || all.some((k) => k.rank_source === "demo");
+  const movement = movementFromKeywords(all);
+  const distribution: DistributionPoint[] = (dist ?? []).map((d) => ({ date: d.date ?? "", top3: Number(d.top3 ?? 0), top10: Number(d.top10 ?? 0), top20: Number(d.top20 ?? 0), top100: Number(d.top100 ?? 0) }));
 
   // Cumulative bucket counts from current positions
   const cur = all.map((k) => k.current_position).filter((p): p is number => p !== null);
@@ -100,7 +74,7 @@ export default async function RankTrackerPage({ params, searchParams }: PageProp
   const filtered = all.filter((k) => {
     if (groupId && !((k.keyword_group_members ?? []) as { group_id: string }[]).some((m) => m.group_id === groupId)) return false;
     if (device !== "all" && k.device !== device) return false;
-    if (movementFilter !== "all" && classify(byKeyword.get(k.id) ?? []) !== movementFilter) return false;
+    if (movementFilter !== "all" && keywordMovement(k) !== movementFilter) return false;
     if (bucketFilter !== "all") {
       const p = k.current_position;
       const ok =
@@ -244,7 +218,7 @@ export default async function RankTrackerPage({ params, searchParams }: PageProp
                 </thead>
                 <tbody className="divide-y divide-line">
                   {filtered.map((k) => {
-                    const m = classify(byKeyword.get(k.id) ?? []);
+                    const m = keywordMovement(k);
                     return (
                       <tr key={k.id} className="hover:bg-surface-2/50">
                         <td className="max-w-[16rem] px-5 py-2.5">

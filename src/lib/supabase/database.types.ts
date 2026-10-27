@@ -549,6 +549,9 @@ export type Database = {
           last_error: string | null;
           created_at: string;
           updated_at: string;
+          sync_state: Json;
+          last_sync_started_at: string | null;
+          sync_claimed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -564,6 +567,9 @@ export type Database = {
           last_error?: string | null;
           created_at?: string;
           updated_at?: string;
+          sync_state?: Json;
+          last_sync_started_at?: string | null;
+          sync_claimed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -579,6 +585,9 @@ export type Database = {
           last_error?: string | null;
           created_at?: string;
           updated_at?: string;
+          sync_state?: Json;
+          last_sync_started_at?: string | null;
+          sync_claimed_at?: string | null;
         };
         Relationships: [
           { foreignKeyName: "integrations_oauth_connection_id_organization_id_fkey"; columns: ["oauth_connection_id", "organization_id"]; isOneToOne: false; referencedRelation: "oauth_connections"; referencedColumns: ["id", "organization_id"] },
@@ -758,6 +767,7 @@ export type Database = {
           rank_source: string | null;
           rank_check_claimed_at: string | null;
           search_volume_trend: Json | null;
+          previous_checked_on: string | null;
         };
         Insert: {
           id?: string;
@@ -790,6 +800,7 @@ export type Database = {
           rank_source?: string | null;
           rank_check_claimed_at?: string | null;
           search_volume_trend?: Json | null;
+          previous_checked_on?: string | null;
         };
         Update: {
           id?: string;
@@ -822,6 +833,7 @@ export type Database = {
           rank_source?: string | null;
           rank_check_claimed_at?: string | null;
           search_volume_trend?: Json | null;
+          previous_checked_on?: string | null;
         };
         Relationships: [
           { foreignKeyName: "keywords_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
@@ -879,6 +891,8 @@ export type Database = {
           revoked_at: string | null;
           created_at: string;
           updated_at: string;
+          provider_account_id: string | null;
+          status: string;
         };
         Insert: {
           id?: string;
@@ -893,6 +907,8 @@ export type Database = {
           revoked_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          provider_account_id?: string | null;
+          status?: string;
         };
         Update: {
           id?: string;
@@ -907,6 +923,8 @@ export type Database = {
           revoked_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          provider_account_id?: string | null;
+          status?: string;
         };
         Relationships: [
           { foreignKeyName: "oauth_connections_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
@@ -1745,6 +1763,9 @@ export type Database = {
       crawl_compute_inbound: { Args: { p_job: string }; Returns: string };
       create_demo_project: { Args: { p_data: Json }; Returns: Json };
       create_organization: { Args: { p_name: string; p_slug: string }; Returns: string };
+      ga_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; users: number | null; new_users: number | null; sessions: number | null; engaged_sessions: number | null; page_views: number | null; source: string | null }[] };
+      gsc_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null; source: string | null }[] };
+      rank_distribution: { Args: { p_site: string; p_from: string }; Returns: { date: string | null; top3: number | null; top10: number | null; top20: number | null; top100: number | null; not_ranking: number | null; source: string | null }[] };
       rate_limit_hit: { Args: { p_bucket: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
     };
     Enums: {

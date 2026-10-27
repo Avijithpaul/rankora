@@ -49,22 +49,19 @@ export default async function SavedKeywordsPage({ params, searchParams }: PagePr
   const pageNo = Math.max(1, Number(str("page", "1")) || 1);
 
   const { data: groups } = await supabase.from("keyword_groups").select("id, name, color, keyword_group_members(count)").eq("website_id", website.id).order("name");
-  let groupKeywordIds: string[] | null = null;
-  if (groupId) {
-    const { data } = await supabase.from("keyword_group_members").select("keyword_id").eq("group_id", groupId).limit(10000);
-    groupKeywordIds = (data ?? []).map((d) => d.keyword_id);
-  }
-
-  let query = supabase
-    .from("keywords")
-    .select("id, keyword, country_code, language_code, device, search_engine, is_tracked, target_url, search_volume, cpc, difficulty, intent, metrics_source, current_position, previous_position, keyword_group_members(group_id)", { count: "exact" })
-    .eq("website_id", website.id);
+  const SELECT = "id, keyword, country_code, language_code, device, search_engine, is_tracked, target_url, search_volume, cpc, difficulty, intent, metrics_source, current_position, previous_position, keyword_group_members(group_id)";
+  const plain = () => supabase.from("keywords").select(SELECT, { count: "exact" });
+  // Group filter = inner join on a second, aliased embed (keeps every group badge on each row).
+  const grouped = () =>
+    supabase.from("keywords").select(`${SELECT}, in_group:keyword_group_members!inner(group_id)`, { count: "exact" }) as unknown as ReturnType<typeof plain>;
+  const validGroup = /^[0-9a-f-]{36}$/i.test(groupId) ? groupId : "";
+  let query = (validGroup ? grouped() : plain()).eq("website_id", website.id);
   if (q) query = query.ilike("normalized_keyword", `%${q.toLowerCase().replace(/[%_\\]/g, "\\$&")}%`);
   if (tracked === "yes") query = query.eq("is_tracked", true);
   if (tracked === "no") query = query.eq("is_tracked", false);
   if (intent === "none") query = query.is("intent", null);
   else if (intent !== "all") query = query.eq("intent", intent);
-  if (groupKeywordIds) query = query.in("id", groupKeywordIds.length ? groupKeywordIds : ["00000000-0000-0000-0000-000000000000"]);
+  if (validGroup) query = query.eq("in_group.group_id" as "id", validGroup);
   const { data: rows, count } = await query.order("search_volume", { ascending: false, nullsFirst: false }).order("keyword").range((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE - 1);
 
   const groupName = new Map((groups ?? []).map((g) => [g.id, g.name]));

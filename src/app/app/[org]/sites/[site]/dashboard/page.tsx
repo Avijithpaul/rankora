@@ -4,7 +4,10 @@ import { ArrowRight, BarChart3, KeyRound, LineChart, ScanSearch, SearchCheck } f
 import { requireWebsite } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { countryName, languageName } from "@/lib/locales";
-import { aggregateTop, rankMovement, relativeChange, topNByDay } from "@/lib/dashboard/metrics";
+import { movementFromKeywords, relativeChange } from "@/lib/dashboard/metrics";
+import { selectAll } from "@/lib/supabase/paginate";
+
+type TopRow = { key: string; clicks: number; impressions: number; ctr: number | null; position: number | null };
 import { formatDate, formatNumber, formatPercent } from "@/lib/utils";
 import { Badge, DemoDataBadge, SeverityBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -35,7 +38,7 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
   const since = isoDaysAgo(DAYS);
   const prevSince = isoDaysAgo(DAYS * 2);
 
-  const [audit, issues, issueCounts, tracked, integrations, gsc, ga, queries, pages, ranks] = await Promise.all([
+  const [audit, issues, issueCounts, tracked, integrations, gsc, ga, queries, pages, dist, trackedRows] = await Promise.all([
     supabase
       .from("seo_audits")
       .select("score, pages_analyzed, created_at")
@@ -71,25 +74,18 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
       .eq("country", "all")
       .gte("date", prevSince)
       .order("date"),
-    supabase
-      .from("search_console_queries")
-      .select("query, clicks, impressions, position, source")
-      .eq("website_id", website.id)
-      .gte("date", since)
-      .limit(5000),
-    supabase
-      .from("search_console_pages")
-      .select("page, clicks, impressions, position")
-      .eq("website_id", website.id)
-      .gte("date", since)
-      .limit(5000),
-    supabase
-      .from("keyword_rankings")
-      .select("keyword_id, checked_on, position, source, keywords!inner(website_id)")
-      .eq("keywords.website_id", website.id)
-      .gte("checked_on", isoDaysAgo(30))
-      .order("checked_on")
-      .limit(5000),
+    // aggregated in SQL (no Data API row cap)
+    supabase.rpc("gsc_breakdown", { p_site: website.id, p_dim: "query", p_from: since, p_to: isoDaysAgo(0), p_limit: 5 }),
+    supabase.rpc("gsc_breakdown", { p_site: website.id, p_dim: "page", p_from: since, p_to: isoDaysAgo(0), p_limit: 5 }),
+    supabase.rpc("rank_distribution", { p_site: website.id, p_from: isoDaysAgo(30) }),
+    selectAll((from, to) =>
+      supabase
+        .from("keywords")
+        .select("current_position, previous_position, last_checked_on, previous_checked_on")
+        .eq("website_id", website.id)
+        .eq("is_tracked", true)
+        .range(from, to),
+    ),
   ]);
 
   const latest = audit.data;
@@ -125,13 +121,16 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
   const hasPrevGsc = gscPrev.length > 0;
   const hasPrevGa = gaPrev.length > 0;
 
-  const topQueries = aggregateTop(queries.data ?? [], (r) => r.query);
-  const topPages = aggregateTop(pages.data ?? [], (r) => r.page);
-  const rankRows = ranks.data ?? [];
-  const movement = rankMovement(rankRows);
-  const top10Trend = topNByDay(rankRows, 10);
-  const ranksDemo = rankRows.some((r) => r.source === "demo");
+  const toTop = (rows: { key: string | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null }[] | null): TopRow[] =>
+    (rows ?? []).map((r) => ({ key: r.key ?? "", clicks: Number(r.clicks ?? 0), impressions: Number(r.impressions ?? 0), ctr: r.ctr === null ? null : Number(r.ctr), position: r.avg_position === null ? null : Number(r.avg_position) }));
+  const topQueries = toTop(queries.data);
+  const topPages = toTop(pages.data);
+  const distRows = dist.data ?? [];
+  const movement = movementFromKeywords(trackedRows);
+  const top10Trend = distRows.map((d) => ({ date: d.date ?? "", count: Number(d.top3 ?? 0) + Number(d.top10 ?? 0) }));
+  const ranksDemo = distRows.some((r) => r.source === "demo");
   const queriesDemo = (queries.data ?? []).some((r) => r.source === "demo");
+  const rankRows = distRows;
 
   const actions: { title: string; body: string; href: string; icon: typeof ScanSearch }[] = [];
   if (!latest) actions.push({ title: "Run your first site audit", body: "Get a baseline SEO score and a prioritised issue list.", href: `${base}/audit`, icon: ScanSearch });
@@ -377,7 +376,7 @@ function TopTable({
   render,
 }: {
   title: string;
-  rows: ReturnType<typeof aggregateTop>;
+  rows: TopRow[];
   demo: boolean;
   emptyHint: string;
   render: (key: string) => string;

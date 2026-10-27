@@ -14,11 +14,41 @@ import {
   type ActionState,
 } from "@/lib/validation/schemas";
 import { safeNextPath } from "@/lib/auth/redirect";
+import { isOAuthProvider } from "@/lib/auth/oauth";
 
 const NOT_CONFIGURED: ActionState = {
   ok: false,
   message: "Authentication is not configured. Add your Supabase keys to .env.local (see README).",
 };
+
+/**
+ * Social sign-in / sign-up (Google, GitHub). Supabase creates the account on
+ * first sign-in; the PKCE verifier is stored in a cookie and exchanged in
+ * /auth/callback. Only same-site relative `next` paths are honoured.
+ */
+export async function signInWithProvider(formData: FormData) {
+  const provider = formData.get("provider");
+  const from = formData.get("from") === "register" ? "/register" : "/login";
+  if (!isSupabaseConfigured() || !isOAuthProvider(provider)) redirect(`${from}?error=oauth_failed`);
+
+  const next = safeNextPath(formData.get("next")) ?? "/app";
+  const origin = publicEnv()?.NEXT_PUBLIC_SITE_URL ?? (await headers()).get("origin") ?? "http://localhost:3000";
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      // GitHub: ask only for the email + public profile; Google: default openid/email/profile
+      scopes: provider === "github" ? "read:user user:email" : undefined,
+      queryParams: provider === "google" ? { prompt: "select_account" } : undefined,
+    },
+  });
+  if (error || !data.url) {
+    console.error("[auth.oauth]", provider, error);
+    redirect(`${from}?error=${error?.code === "provider_disabled" || error?.message?.includes("not enabled") ? "provider_disabled" : "oauth_failed"}`);
+  }
+  redirect(data.url);
+}
 
 export async function signIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
   if (!isSupabaseConfigured()) return NOT_CONFIGURED;

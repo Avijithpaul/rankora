@@ -113,3 +113,41 @@ export function relativeChange(current: number, previous: number): number | null
   if (previous === 0) return null;
   return (current - previous) / previous;
 }
+
+export interface TrackedPosition {
+  current_position: number | null;
+  previous_position: number | null;
+  last_checked_on: string | null;
+  previous_checked_on: string | null;
+}
+
+export type Movement = "improved" | "dropped" | "new" | "lost" | "unchanged" | "first" | "unchecked";
+
+/** Movement of one keyword between its latest and previous snapshot (denormalized columns). */
+export function keywordMovement(k: TrackedPosition): Movement {
+  if (!k.last_checked_on) return "unchecked";
+  if (!k.previous_checked_on) return "first";
+  const cur = k.current_position;
+  const prev = k.previous_position;
+  if (prev === null && cur !== null) return "new";
+  if (prev !== null && cur === null) return "lost";
+  if (prev !== null && cur !== null) return cur < prev ? "improved" : cur > prev ? "dropped" : "unchanged";
+  return "unchanged";
+}
+
+/** Same result shape as rankMovement(), computed from keyword rows (no snapshot fetch, no row caps). */
+export function movementFromKeywords(rows: TrackedPosition[]): RankMovement {
+  const m: RankMovement = { improved: 0, dropped: 0, unchanged: 0, new: 0, lost: 0, distribution: { top3: 0, top10: 0, top20: 0, top100: 0, notRanking: 0 } };
+  for (const k of rows) {
+    if (!k.last_checked_on) continue;
+    const p = k.current_position;
+    if (p === null) m.distribution.notRanking++;
+    else if (p <= 3) m.distribution.top3++;
+    else if (p <= 10) m.distribution.top10++;
+    else if (p <= 20) m.distribution.top20++;
+    else m.distribution.top100++;
+    const mv = keywordMovement(k);
+    if (mv === "improved" || mv === "dropped" || mv === "new" || mv === "lost" || mv === "unchanged") m[mv]++;
+  }
+  return m;
+}

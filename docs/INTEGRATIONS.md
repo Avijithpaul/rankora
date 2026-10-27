@@ -8,31 +8,83 @@ All provider calls happen **server-side**. Credentials live only in server envir
 | Supabase (auth + DB) | ✅ Phase 1 | Supabase project (free tier works) | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` |
 | Site crawler | Phase 2 | nothing external | — |
 | Google PageSpeed Insights | Phase 2 | free Google Cloud API key | `PAGESPEED_API_KEY` |
-| Google Search Console | Phase 4 | Google Cloud OAuth client | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY` |
-| Google Analytics 4 (Data API) | Phase 4 | same OAuth client | same |
+| Google Search Console | ✅ Phase 4 | Google Cloud OAuth client | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY` |
+| Google Analytics 4 (Data + Admin API) | ✅ Phase 4 | same OAuth client | same |
 | Keyword data (volume, CPC, difficulty, ideas) | Phase 3 | paid provider, e.g. DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` |
 | SERP rank checks | Phase 3 | paid provider, e.g. DataForSEO | same |
 | Backlinks | Phase 6 | paid provider, e.g. DataForSEO Backlinks | same |
 | AI content suggestions | Phase 5 | LLM API (Claude) | `ANTHROPIC_API_KEY` |
 | Payments | Phase 7 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 
-## Google OAuth flow (Search Console + GA4) — design
+## Google Search Console + GA4 (implemented in Phase 4)
 
-Scopes (read-only): `https://www.googleapis.com/auth/webmasters.readonly`,
-`https://www.googleapis.com/auth/analytics.readonly`, plus `openid email`.
+Code: `src/lib/google/` (oauth, connections, search-console, analytics, sync, errors), routes under
+`src/app/api/integrations/`, UI in `sites/[site]/integrations`, `search-performance`, `analytics`.
 
-1. `GET /api/integrations/google/start?site=…` — user must be `member+` on the site.
-   Generate `state` (32 random bytes) and a PKCE verifier. Store **SHA-256(state)**, the encrypted verifier,
-   user, organization, site and a 10-minute expiry in `oauth_states`. Redirect to Google with
+### Setup (Google Cloud)
+
+1. Create (or reuse) a Google Cloud project and an **OAuth client → Web application**.
+2. Authorized redirect URI: `<NEXT_PUBLIC_SITE_URL>/api/integrations/google/callback`
+   (locally `http://localhost:3000/api/integrations/google/callback`).
+3. Enable APIs: **Google Search Console API**, **Google Analytics Data API**, **Google Analytics Admin API**.
+4. OAuth consent screen: add the read-only scopes below; while the app is in *Testing*, add your Google account as a test user.
+5. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY` (and `SUPABASE_SECRET_KEY`) on the server.
+
+The same OAuth client can also be used for “Sign in with Google” in Supabase; add both redirect URIs.
+
+### Flow
+
+Scopes (read-only only): `openid email https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/analytics.readonly`.
+
+1. `GET /api/integrations/google/start?site=…&services=gsc,ga4` — user must be **member+** of the website (RLS lookup),
+   not a demo site; rate limited (10/h). Creates a random `state` (stored only as SHA-256) and a **PKCE S256** verifier
+   (stored encrypted), bound to user + organization + website, 10-minute expiry. Redirects to Google with
    `access_type=offline&prompt=consent`.
-2. `GET /api/integrations/google/callback` — look up `oauth_states` by hash; reject if missing, expired,
-   already used, or for a different signed-in user. Mark it used, exchange the code with the verifier.
-3. Encrypt access and refresh tokens with AES-256-GCM (`src/lib/security/crypto.ts`) and store them in
-   `oauth_connections`. Token columns are never selectable by clients.
-4. The user picks the GSC property / GA4 property → `integrations` row (`status = connected`).
-5. A daily sync job pulls data into `search_console_*` / `analytics_*` with `source = 'gsc' | 'ga4'`.
-   Refresh failures set `status = error` with `last_error` and surface a reconnect prompt.
-6. Disconnect revokes the token at Google, sets `revoked_at` and deletes the ciphertext.
+2. `GET /api/integrations/google/callback` — rejects unknown, expired, reused, wrong-provider or **different-user** states;
+   claims the state atomically (single use); re-checks the user is still member+ of the website; exchanges the code with
+   the verifier; stores access + refresh tokens **AES-256-GCM encrypted** in `oauth_connections` (one per organization +
+   Google account); creates/updates `integrations` rows as `pending`.
+3. The user picks a property on the Integrations page. The value is **re-validated against the live list from Google**
+   before it is saved, then an initial sync (180 days) is queued.
+4. Sync runs in time-boxed steps (`POST /api/integrations/[id]/sync` while the page is open, and `GET /api/cron/google-sync`
+   daily with `Bearer CRON_SECRET` for the last 5 days).
+5. Tokens refresh automatically 2 minutes before expiry. A revoked/invalid refresh token marks the connection `expired`,
+   wipes the access token and flags every affected integration with a “Reconnect” message.
+6. “Disconnect from this website” detaches one integration (optionally deleting imported data); “Revoke access” (admins)
+   revokes the token at Google and deletes the ciphertext for the whole organization.
+
+### Data stored (normalized, `source = 'gsc' | 'ga4'`)
+
+| Step | API call | Table / rows |
+|---|---|---|
+| gsc_totals | searchAnalytics.query `[date]` | `search_console_daily` device=all, country=all |
+| gsc_devices / gsc_countries | `[date, device]` / `[date, country]` | `search_console_daily` per device / country |
+| gsc_queries / gsc_pages | `[date, query]` / `[date, page]` (paged, ≤ 50k rows) | `search_console_queries` / `search_console_pages` |
+| ga_totals / ga_channels / ga_devices / ga_countries | runReport `[date(, dimension)]` | `analytics_daily` (`all` = roll-up) |
+| ga_pages / ga_landing | runReport `[date, pagePath]` / `[date, landingPage]` | `analytics_pages` (`is_landing`) |
+
+Views aggregate in SQL (`gsc_breakdown`, `ga_breakdown`, SECURITY INVOKER so RLS applies), which also avoids the Data
+API 1,000-row response cap.
+
+### Error handling
+
+| Situation | What the user sees |
+|---|---|
+| Not configured on server | setup card with the exact env vars and redirect URI |
+| Not connected / disconnected | “Connect Google account” on Integrations; connect prompt on Analytics / Search Performance |
+| Connected, no property chosen | “Choose a property” |
+| No properties on the account | how to verify a site in Search Console / create a GA4 property |
+| Token expired or revoked | “Google access expired or was revoked. Reconnect…” plus a Reconnect button |
+| Permission lost / property removed | specific message; choose another property |
+| 429 / 5xx / network | automatic retry after 60 s with a rate-limit message; sync resumes at the failed step |
+| First import running | progress bar on Integrations; “First import in progress” on data pages |
+| No data in range | per-chart / per-table empty states (no zero-filled fake days) |
+
+### Notes
+
+* GA4 “Users” across several days are summed daily unique users (a returning person can count more than once); the UI says so.
+* Search Console hides anonymized queries, so the query table can total less than the overview.
+* Nothing is shown as Google data unless it came from these API calls; Demo Project rows are `source = 'demo'` and badged.
 
 ## Provider abstraction
 
