@@ -20,6 +20,8 @@ beforeAll(async () => {
   orgA = await asUser(db, A, async (tx) => (await tx.query<{ id: string }>(`select public.create_organization('P A', 'p-a') as id`)).rows[0].id);
   await asUser(db, B, (tx) => tx.query(`select public.create_organization('P B', 'p-b')`));
   await asService(db, (tx) => tx.query(`insert into public.organization_members (organization_id, user_id, role) values ($1,$2,'viewer')`, [orgA, V]));
+  // two websites need a paid plan
+  await asService(db, (tx) => tx.query(`update public.subscriptions set plan_id = 'pro' where organization_id = $1`, [orgA]));
   const site = (domain: string) =>
     asUser(db, A, async (tx) => (await tx.query<{ id: string }>(`insert into public.websites (organization_id, name, domain, base_url) values ($1,$2,$2,'https://' || $2 || '/') returning id`, [orgA, domain])).rows[0].id);
   siteA = await site("a.example");
@@ -142,5 +144,28 @@ describe("seo_tasks", () => {
     expect(one.rows[0]).toMatchObject({ todo: 2, completed: 0 });
     const other = await asUser(db, B, (tx) => tx.query<Record<string, number>>(`select * from public.task_stats($1)`, [orgA]));
     expect(other.rows[0]).toMatchObject({ todo: 0, completed: 0 });
+  });
+});
+
+describe("reports", () => {
+  it("are server-written, labelled demo by the website, and type-checked", async () => {
+    await expect(
+      asUser(db, A, (tx) => tx.query(`insert into public.reports (organization_id, website_id, type, title, date_from, date_to) values ($1,$2,'overview','t','2026-10-01','2026-10-27')`, [orgA, siteA])),
+    ).rejects.toThrow(/permission denied/);
+    const id = await asService(db, async (tx) =>
+      (
+        await tx.query<{ id: string; is_demo: boolean }>(
+          `insert into public.reports (organization_id, website_id, type, title, date_from, date_to, is_demo) values ($1,$2,'search_performance','t','2026-10-01','2026-10-27', true) returning id, is_demo`,
+          [orgA, siteA],
+        )
+      ).rows[0],
+    );
+    expect(id.is_demo).toBe(false); // the website is not a demo website, whatever the caller says
+    await expect(
+      asService(db, (tx) => tx.query(`insert into public.reports (organization_id, website_id, type, title, date_from, date_to) values ($1,$2,'made_up','t','2026-10-01','2026-10-27')`, [orgA, siteA])),
+    ).rejects.toThrow(/reports_type_check/);
+    expect((await asUser(db, B, (tx) => tx.query(`select id from public.reports`))).rows).toHaveLength(0);
+    expect((await asUser(db, V, (tx) => tx.query(`delete from public.reports where id = $1`, [id.id]))).affectedRows).toBe(0);
+    expect((await asUser(db, A, (tx) => tx.query(`delete from public.reports where id = $1`, [id.id]))).affectedRows).toBe(1);
   });
 });

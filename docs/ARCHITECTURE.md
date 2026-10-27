@@ -50,7 +50,7 @@ classic dynamic model is simpler and avoids session-specific prerendered shells.
 ## 2. Route structure
 
 ```
-Public (static)    /, /features, /seo-audit, /keyword-research, /analytics,
+Public (static)    /, /features, /project, /academic-demo, /seo-audit, /keyword-research, /analytics,
                    /rank-tracking, /pricing, /about, /contact
 Auth               /login, /register, /auth/callback (PKCE code exchange)
 Onboarding         /onboarding → /onboarding/website → /onboarding/next-steps
@@ -60,7 +60,7 @@ App (site scope)   /app/[org]/sites/[site]/
                      dashboard · analytics · search-performance · keyword-research
                      keywords · rank-tracker · competitors · backlinks · audit
                      technical · pages (Page Explorer) · content(/[analysisId]) · competitors(/[id])
-                     backlinks · tasks(/[taskId]) · reports
+                     backlinks · tasks(/[taskId]) · reports(/[reportId])
                      integrations · settings
 Admin              /admin (platform_admins only; 404 otherwise)
 Planned handlers   /api/cron/crawl, /api/integrations/google/{start,callback},
@@ -133,6 +133,10 @@ src/
   lib/competitors/        competitor comparison (pure), snapshot/overlap services, data loaders
   lib/backlinks/          backlink sync service (provider → backlinks table)
   lib/tasks/              task validation, labels, stats helpers
+  lib/reports/            report periods and snapshot model (pure), builder, exporters
+  lib/billing/            plan catalog, entitlements (pure), usage metering, billing providers, subscription service
+  lib/team/               invitations
+  lib/notifications.ts    in-app notifications ; lib/monitoring.ts — system event log with redaction
   lib/content/            Content Optimizer: document model, 21-check analyzer, term sources, page recommendations
   lib/ai/                 optional AI suggestion providers (interface, prompts, Claude adapter, registry)
   lib/supabase/           clients + generated DB types

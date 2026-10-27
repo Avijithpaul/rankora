@@ -2,41 +2,57 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
 import { ButtonLink } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { MARKETING_FEATURES } from "./features-data";
 
 const NAV = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/project", label: "Docs" },
+  { href: "/academic-demo", label: "Demo" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
 
+const LEARN = [
+  { href: "/project", label: "Project documentation" },
+  { href: "/academic-demo", label: "Academic demo" },
+];
+
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-surface">
-      <header className="sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-canvas">
+      <header className="sticky top-0 z-30 border-b border-line/70 bg-canvas/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-[72px] max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Logo />
-          <nav className="hidden items-center gap-6 text-sm text-ink-2 md:flex" aria-label="Primary">
+          <nav className="mx-auto hidden items-center gap-8 text-[15px] text-ink-2 lg:flex" aria-label="Primary">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="hover:text-ink">
+              <Link key={n.href} href={n.href} className="transition-colors hover:text-ink">
                 {n.label}
               </Link>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-2">
-            <ButtonLink href="/login" variant="ghost" size="sm">
+          <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <ThemeToggle />
+            <Link href="/login" className="hidden px-2 text-[15px] font-medium text-ink hover:text-brand sm:inline">
               Sign in
-            </ButtonLink>
-            <ButtonLink href="/register" size="sm">
-              Start free
+            </Link>
+            <ButtonLink href="/register" size="sm" className="h-10 px-4">
+              Get started free
             </ButtonLink>
           </div>
         </div>
+        <nav className="flex gap-5 overflow-x-auto border-t border-line/60 px-4 py-2 text-sm text-ink-2 lg:hidden" aria-label="Primary (mobile)">
+          {NAV.map((n) => (
+            <Link key={n.href} href={n.href} className="shrink-0 hover:text-ink">
+              {n.label}
+            </Link>
+          ))}
+        </nav>
       </header>
       <main className="flex-1">{children}</main>
-      <footer className="border-t border-line bg-canvas">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
+      <footer className="border-t border-line bg-surface/40">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-5">
           <div>
             <Logo />
             <p className="mt-3 text-sm text-muted">All-in-One SEO Analyze, Fix &amp; Optimization Platform.</p>
@@ -57,6 +73,18 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
             <p className="text-sm font-semibold">Company</p>
             <ul className="mt-3 space-y-2 text-sm text-muted">
               {NAV.slice(1).map((n) => (
+                <li key={n.href}>
+                  <Link href={n.href} className="hover:text-ink">
+                    {n.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Learn</p>
+            <ul className="mt-3 space-y-2 text-sm text-muted">
+              {LEARN.map((n) => (
                 <li key={n.href}>
                   <Link href={n.href} className="hover:text-ink">
                     {n.label}

@@ -87,6 +87,8 @@ try {
   const org = (await db.from("organizations").insert({ name: "Live check", slug: `live-check-${userId.slice(0, 8)}`, created_by: userId }).select("*").single()).data!;
   orgId = org.id;
   await db.from("organization_members").insert({ organization_id: orgId, user_id: userId, role: "owner" });
+  // backlink syncs are not included in Free; this check runs on Pro (manual plan, no payment)
+  await db.from("subscriptions").upsert({ organization_id: orgId, plan_id: "pro", status: "active", provider: "manual" }, { onConflict: "organization_id" });
   const site = (await db.from("websites").insert({ organization_id: orgId, name: target.hostname, domain: target.hostname.replace(/^www\./, ""), base_url: target.toString(), created_by: userId }).select("*").single()).data!;
   const comp = (await asUser<{ id: string }>(userId, `insert into public.competitors (organization_id, website_id, domain, name) values ($1,$2,$3,'Rival') returning id`, [orgId, site.id, rival]))[0];
   const competitor = (await db.from("competitors").select("*").eq("id", comp.id).single()).data!;
@@ -122,12 +124,12 @@ try {
   console.log("5. Backlinks (test-double provider)");
   const none = await syncBacklinks({ website: site, userId, planId: "free", provider: null });
   check("no provider → not_connected", !none.ok && none.reason === "not_connected");
-  const s1 = await syncBacklinks({ website: site, userId, planId: "free", provider: fakeBacklinks });
+  const s1 = await syncBacklinks({ website: site, userId, planId: "pro", provider: fakeBacklinks });
   check("first sync stores live + lost links", s1.ok && s1.stored === 3, JSON.stringify(s1));
   const rd = await asUser<{ domain: string; live: number }>(userId, `select domain, live from public.backlink_referring_domains($1)`, [site.id]);
   check("referring domains aggregated as the user", rd.length === 3, rd.map((r) => `${r.domain}:${r.live}`).join(", "));
   backlinkRound = 1;
-  const s2 = await syncBacklinks({ website: site, userId, planId: "free", provider: fakeBacklinks });
+  const s2 = await syncBacklinks({ website: site, userId, planId: "pro", provider: fakeBacklinks });
   const left = (await db.from("backlinks").select("source_domain").eq("website_id", site.id)).data ?? [];
   check("second sync removes links the provider no longer returns", s2.ok && left.length === 1 && left[0].source_domain === "a.example", left.map((l) => l.source_domain).join(","));
   await expectDenied("client cannot insert backlinks", () => asUser(userId, `insert into public.backlinks (organization_id, website_id, source_url, source_domain, target_url, provider) values ($1,$2,'https://f.example','f.example','https://x/','fake')`, [orgId, site.id]));

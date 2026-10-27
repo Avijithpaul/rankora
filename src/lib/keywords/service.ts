@@ -10,6 +10,7 @@ import { getKeywordProvider, getRankProvider } from "@/lib/providers/registry";
 import { ProviderError, type KeywordIdea, type KeywordMetrics, type KeywordProvider, type Market, type RankProvider } from "@/lib/providers/types";
 import { ideaType, normalizeKeyword } from "./utils";
 import { MAX_COMPETITORS } from "@/lib/competitors/compare";
+import { getEntitlements, recordUsage } from "@/lib/billing/usage";
 
 type Website = Tables<"websites">;
 const CACHE_DAYS = 7;
@@ -218,7 +219,11 @@ export async function runRankBatch(
   const db = createAdminClient();
   const started = Date.now();
   const budget = opts.budgetMs ?? 20_000;
-  const max = opts.max ?? 20;
+  // monthly rank-check allowance caps how many keywords this batch may check
+  const ent = await getEntitlements(website.organization_id);
+  const monthLeft = Math.max(0, ent.limits.rank_checks_per_month - ent.usage.rank_checks_per_month);
+  if (monthLeft <= 0) throw new ProviderError(`Monthly rank-check limit reached (${ent.limits.rank_checks_per_month.toLocaleString("en")} on the ${ent.planName} plan)`, "quota");
+  const max = Math.min(opts.max ?? 20, monthLeft);
   const today = todayUtc();
   let checked = 0;
   let failed = 0;
@@ -292,7 +297,7 @@ export async function runRankBatch(
   }
 
   if (checked > 0) {
-    await db.from("usage_records").insert({ organization_id: website.organization_id, website_id: website.id, metric: "rank_checks", quantity: checked });
+    await recordUsage({ orgId: website.organization_id, websiteId: website.id, metric: "rank_checks", quantity: checked });
   }
   return { checked, failed, remaining: await dueKeywordCount(website.id), errors: errors.slice(0, 5) };
 }

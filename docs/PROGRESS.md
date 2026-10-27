@@ -1,5 +1,205 @@
 # Rankora — Progress Log
 
+## Phase 8 — SaaS Readiness (2026-10-28)
+
+Full report: [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md).
+
+### Completed
+
+* **Plans**: Free / Starter ($12) / Pro ($29) / Agency ($99). Each sets websites, team members, crawled pages per
+  month (and per audit), tracked keywords, rank checks, keyword lookups, reports, AI credits and backlink syncs.
+* **Subscription model**: `subscriptions` is the source of truth and a trigger derives `organizations.plan_id`
+  (canceled → Free). `billing_events` makes provider webhooks idempotent.
+* **Entitlements and usage** (`src/lib/billing/entitlements.ts`, `usage.ts`):
+  * Limits are now enforced in audits (monthly page budget caps the crawl), rank checks, reports, AI credits,
+    invitations, websites, tracked keywords and competitors.
+  * The last four are also enforced in the database.
+  * Org admins are notified once at 80 % and 100 % of a monthly limit.
+* **Billing provider abstraction** (`src/lib/billing/provider.ts`):
+  * The manual provider is active. No payments are taken; superadmins change plans in `/admin`, with a reason that
+    is written to the audit log.
+  * A Stripe adapter exists (checkout, portal, HMAC-verified webhook `/api/billing/webhook`, event mapping). It is
+    **not activated**: it needs Stripe credentials and `BILLING_LIVE_APPROVED=true`.
+* **Upgrade UI**: the billing page has usage meters, plan cards, upgrade buttons (disabled while payments are off)
+  and the subscription status.
+* **Team members**:
+  * Invitations: one-time hashed tokens, 7-day expiry, confirmed and matching email required, seat limit includes
+    open invitations.
+  * Members: role changes, removal and leaving. Owners are protected by database triggers.
+  * Clients can no longer insert members directly.
+  * Accept page at `/invite/[token]`.
+* **Notifications**: bell with unread count in the header and a notifications page. Events: task assigned, audit
+  finished, member joined, role changed, plan changed, usage thresholds.
+* **Audit logs**: new events for members, invites, plans and AI. Org admins see an activity log in Settings.
+* **Admin monitoring**: `/admin` shows signups, organizations, failed and stuck crawls, integrations in error, failed
+  billing events, plans, platform usage, recent errors, configuration status, and manual plan changes.
+* **Error handling**:
+  * `system_events` logging with secret redaction.
+  * Generic user-facing crawl and config errors.
+  * Root `global-error.tsx`.
+* **Rate limiting**: new buckets for invites, checkout, Google property selection and sync-now.
+* **Security review**: an independent review plus fixes (see the readiness report). Highlights: limits and the
+  website-domain rule moved into the database, Google property selection tied to domain and owner, owner removal
+  protected, member insertion locked down, CSP/COOP headers, URL scheme checks, AI demo guard.
+* **Responsive QA and E2E**: Playwright (Microsoft Edge) runs 15 end-to-end tests:
+  * public pages and security headers;
+  * auth guards and the wrong-password message;
+  * billing;
+  * invite → accept → link reuse refused;
+  * notifications and the activity log;
+  * task assignment with an unsafe URL rejected;
+  * role downgrade to viewer;
+  * tenant isolation and a hidden `/admin`;
+  * no horizontal scroll on 11 pages at 375, 768 and 1440 px, with screenshots reviewed.
+* Pricing page shows all four plans from `src/lib/billing/catalog.ts`; a test keeps it equal to the migration.
+
+### Files changed
+
+New: `src/lib/billing/{entitlements,usage,provider,service,catalog}.ts`, `src/lib/notifications.ts`,
+`src/lib/monitoring.ts`, `src/lib/team/invitations.ts`, `src/lib/google/property-match.ts`,
+`src/lib/actions/{billing,team,notifications}.ts`, `src/components/billing/usage-meter.tsx`,
+`src/components/team/invite-form.tsx`, pages `billing` (rewritten), `notifications`, `invite/[token]`, `admin`
+(rewritten), `global-error.tsx`, API `billing/webhook`, migration `…0013_saas.sql`, `playwright.config.ts`,
+`tests/e2e/*`, `tests/unit/billing.test.ts`, `tests/db/saas.test.ts`, `docs/PRODUCTION-READINESS.md`.
+Changed: audit service and action (monthly page budget, generic errors, notifications), keyword service (rank-check
+budget), report and AI actions (quotas), tasks actions (assignment notifications), integrations action (property
+rules and rate limits), settings page (team, activity log), org layout (bell), pricing page, `next.config.ts`
+(CSP, COOP), `.env.example`, `scripts/verify-live-db.mts` (43 tables, 4 plans), `scripts/live-phase6-check.mts`
+(runs on Pro), tests `rls`/`demo`/`phase6`, docs.
+
+### Database changes
+
+`…0013`:
+* Plan catalog upsert (four plans, `features`).
+* Subscriptions: `subscriptions.trial_end`, the `sync_org_plan` trigger, and backfilled subscription rows.
+* New tables: `billing_events`, `organization_invitations` (admins read, token hash hidden).
+* Usage: `ai_credits` metric, `usage_summary()`.
+* Triggers:
+  * member limit;
+  * owner removal guard;
+  * website limit and the `base_url`-on-domain rule;
+  * tracked keyword limit;
+  * competitor limit.
+* `org_member_by_email()` (service role only).
+* Members: `members_insert` policy dropped and client INSERT revoked.
+* URL scheme CHECKs; monitoring indexes.
+
+Applied live; `db:verify` passes (43 tables, 4 plans).
+
+### Tests performed
+
+* `npm run check`: lint, typecheck, **347 tests in 27 files** (18 unit, 9 database), production build — all pass.
+* `npm run test:e2e`: **15 passed** against the production build on localhost. Temporary accounts are created and
+  deleted per run; zero left over afterwards.
+* Live: `db:verify`, `audit:live-check` (score 74.6), `keywords:live-check` (14 checks), `google:live-check`,
+  `content:live-check`, `phase6:live-check`, `reports:live-check` — all pass.
+* `npm audit --omit=dev`: 0 vulnerabilities.
+* Problems found and fixed during this phase:
+  * admins could insert arbitrary users into an organization;
+  * an admin could remove an owner;
+  * limits could be bypassed through the Data API;
+  * a `base_url` could point at another domain;
+  * any member could attach unrelated Google properties;
+  * raw crawl errors were shown to users;
+  * the sole owner saw a "Leave" button that could not work;
+  * the responsive test measured the loading skeleton instead of the page;
+  * the live Phase 6 check ran on Free, which now has no backlink syncs.
+
+### Known limitations
+
+See *Partially ready*, *Blocked*, *Requires paid API* and *Requires credentials* in PRODUCTION-READINESS.md.
+In short:
+* no real payments (by design);
+* no email delivery;
+* no script-nonce CSP;
+* no external error tracking;
+* no account deletion or privacy pages;
+* provider-backed features need paid APIs.
+
+## Phase 7 — Reporting & Academic Demo (2026-10-28)
+
+### Completed
+
+* **Reports** (`/sites/[site]/reports`): six types — SEO Overview, Site Audit, Keyword Rankings, Organic Traffic,
+  Search Performance, Monthly SEO Summary.
+  * Builder options: report type, **website selection** (any website of the organization), date range (7/28/90 days
+    or custom, up to one year), calendar month for the monthly summary, and **period comparison** (previous period,
+    same period last year, or none).
+  * Reports are **frozen snapshots** (`reports.snapshot`, version 1), so a printed report stays reproducible.
+  * Each section names its data source (Rankora crawl, Search Console, GA4, rank provider, tasks, or Demo Data).
+    A section without data shows the reason ("no data"), never zeros.
+  * Sections: audit score vs previous audit, category breakdown, open/new/fixed issues; search clicks, impressions,
+    CTR and position with deltas, daily chart, top queries and pages; organic sessions, users, views and engagement
+    rate, all-channel sessions, top landing pages; ranking distribution then vs now, average position, improved and
+    declined keywords; task counts.
+  * The Overview and Monthly reports add **rule-based highlights** (not AI) generated from the numbers.
+* **Printable report page**: print styles hide the app chrome and keep sections together; "Print / Save as PDF".
+* **Export architecture** (`src/lib/reports/export.ts`): a `ReportExporter` interface with JSON and CSV (metrics with
+  sources) implemented. A PDF slot is defined for a future renderer service (`PDF_RENDERER_URL`); the
+  `/api/reports/[id]/export?format=pdf` endpoint answers 501 with guidance until then. Exports are read as the user
+  (RLS) and demo exports are named `…-DEMO-DATA`.
+* **Demo Data**: `reports.is_demo` is set by a trigger from the website (callers cannot change it); demo reports
+  show a Demo Data banner and badges.
+* **Academic Demo Mode**:
+  * public presenter page `/academic-demo`: 12-step, 5–10 minute flow with say/show/links, Demo Data steps marked,
+    database relationship table and likely viva questions;
+  * rewritten `docs/ACADEMIC-DEMO.md` (same flow, 5-minute variant, criteria → code map).
+* **Project documentation**: public page `/project` (architecture diagram; frontend, backend, database, APIs,
+  security, SEO crawler, authentication, data visualization, CRUD, with file paths) and
+  `docs/PROJECT-DOCUMENTATION.md`. Both are linked from the site footer.
+
+### Files changed
+
+New: `src/lib/reports/{compose,build,export}.ts`, `src/lib/actions/reports.ts`, `src/components/reports/{report-view,print-button}.tsx`,
+pages `reports/page.tsx`, `reports/[reportId]/page.tsx`, `(marketing)/academic-demo/page.tsx`, `(marketing)/project/page.tsx`,
+API `api/reports/[reportId]/export/route.ts`, migration `…0012_reports.sql`, `scripts/live-reports-check.mts`,
+`tests/unit/reports.test.ts`, `docs/PROJECT-DOCUMENTATION.md`.
+Changed: org layout (print classes), `globals.css` (print styles), marketing footer, navigation (Reports live — no
+planned modules remain), `tests/db/phase6.test.ts` (report tests), `docs/ACADEMIC-DEMO.md`, other docs.
+
+### Database changes
+
+`…0012`: `reports.type` adds `search_performance`; `snapshot_version`, `is_demo` (set from the website by trigger),
+`compare_mode`; index `(organization_id, created_at desc)`. Applied live; `db:verify` passes.
+
+### Tests performed
+
+* `npm run check`: lint, typecheck, **324 tests in 25 files** (+15), production build — all pass.
+* Unit: period resolution (presets, custom validation, calendar months incl. February and the current month,
+  year-over-year), positions at a date, distribution, average position, movers only for keywords seen on both dates,
+  highlights (no line without data), CSV/JSON exports, PDF unavailable without a renderer, audit cutoff.
+* DB: reports are server-written, demo flag comes from the website even if the caller sends `true`, type
+  constraint, tenant isolation, viewer cannot delete.
+* Live (`npm run reports:live-check`, temporary users and orgs cleaned up):
+  * Demo Project: all six types built; every report flagged Demo Data.
+  * Search clicks (6,619) and organic sessions (7,812) equal independent SQL sums.
+  * Ranking distribution 10/10; monthly summary for September with highlights; CSV marked DEMO DATA.
+  * Real website (books.toscrape.com, 8-page audit): overview uses the real crawl score (74.21); search, traffic and
+    rankings report "no data" instead of zeros.
+  * RLS: owner reads, another user cannot, client insert denied.
+* Bugs found by the live check and fixed:
+  1. A report for "last N days" (ending yesterday) excluded an audit run today. Current periods now use the latest
+     audit at generation time; past periods use the last audit before they ended.
+  2. The monthly highlight said "0 improved and 0 declined" when the comparison month had no rank data. Movement is
+     now mentioned only when a comparison exists.
+  3. The live-check script itself mis-read the demo RPC result and left a test org behind; it was cleaned up and the
+     script now removes every org of its temporary users.
+* Browser: `/academic-demo` and `/project` render (screenshots checked); report routes redirect signed-out users to
+  sign-in; the export API returns 401 without a session; no server errors.
+
+### Known limitations
+
+* Server-side PDF rendering is architecture only (no renderer configured). Printing to PDF from the browser works.
+* Reports are built for one website at a time (an organization-wide roll-up is not built).
+* The signed-in report pages have not been viewed in a browser (requires the owner's account). Rendering is covered
+  by typecheck and build, the data by the live check.
+* Highlights are template sentences in English.
+
+### Next tasks
+
+* SaaS hardening: Stripe billing, team invitations, notifications, admin console, CSP, MFA.
+* Optional: scheduled monthly reports by email; PDF renderer service; organization-wide reports.
+
 ## Phase 6 — Competitors, Backlinks & SEO Workflow (2026-10-28)
 
 ### Completed

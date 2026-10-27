@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireWebsite, roleAtLeast } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { priorityFromSeverity, taskSchema } from "@/lib/tasks/utils";
+import { notifyUsers } from "@/lib/notifications";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const msg = (back: string, key: "error" | "saved", text: string) => `${back}${back.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(text)}`;
@@ -26,6 +27,10 @@ async function ctxFrom(formData: FormData) {
 function assertEditor(ctx: Awaited<ReturnType<typeof ctxFrom>>, back: string) {
   if (!roleAtLeast(ctx.role, "member")) redirect(msg(back, "error", "Viewers cannot change tasks."));
   if (ctx.website.is_demo) redirect(msg(back, "error", "The Demo Project is read-only."));
+}
+
+async function notifyAssignee(ctx: Awaited<ReturnType<typeof ctxFrom>>, userId: string, taskId: string, title: string) {
+  await notifyUsers(ctx.org.id, [userId], { type: "task.assigned", title: `Task assigned to you: ${title}`, body: `${ctx.website.domain}`, link: `sites/${ctx.website.id}/tasks/${taskId}` });
 }
 
 function friendly(error: { message: string; code?: string } | null) {
@@ -65,6 +70,7 @@ export async function createTaskAction(formData: FormData) {
     .single();
   const problem = friendly(error);
   if (problem || !data) redirect(msg(back, "error", problem ?? "The task could not be saved."));
+  if (t.assignedTo && t.assignedTo !== ctx.user.id) await notifyAssignee(ctx, t.assignedTo, data.id, t.title);
   revalidatePath(`${ctx.base}/tasks`);
   redirect(`${ctx.base}/tasks/${data.id}?saved=created`);
 }
@@ -121,6 +127,7 @@ export async function updateTaskAction(formData: FormData) {
   if (!parsed.success) redirect(msg(back, "error", parsed.error.issues[0]?.message ?? "Invalid task"));
   const t = parsed.data;
   const supabase = await createClient();
+  const { data: before } = await supabase.from("seo_tasks").select("assigned_to").eq("id", id).eq("website_id", ctx.website.id).maybeSingle();
   const { data, error } = await supabase
     .from("seo_tasks")
     .update({ title: t.title, notes: t.notes, priority: t.priority, status: t.status, assigned_to: t.assignedTo, due_date: t.dueDate, page_url: t.pageUrl })
@@ -129,6 +136,7 @@ export async function updateTaskAction(formData: FormData) {
     .select("id");
   const problem = friendly(error) ?? (data?.length ? null : "Task not found.");
   if (problem) redirect(msg(back, "error", problem));
+  if (t.assignedTo && t.assignedTo !== before?.assigned_to && t.assignedTo !== ctx.user.id) await notifyAssignee(ctx, t.assignedTo, id, t.title);
   revalidatePath(`${ctx.base}/tasks`);
   redirect(msg(back, "saved", "Task saved."));
 }

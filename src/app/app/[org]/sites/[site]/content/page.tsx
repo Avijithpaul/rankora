@@ -38,7 +38,7 @@ export default async function ContentPage({ params, searchParams }: PageProps<"/
     : !roleAtLeast(role, "member")
       ? "Viewers can read analyses but not run new ones."
       : !providerConfig().serviceRoleConfigured
-        ? "Server is missing SUPABASE_SECRET_KEY."
+        ? "Not fully configured on the server yet."
         : null;
   const ai = aiConfig();
 

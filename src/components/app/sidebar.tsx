@@ -3,31 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  BarChart3,
-  Bookmark,
-  Building2,
-  CreditCard,
-  FileBarChart,
-  FileText,
-  Globe,
-  LayoutDashboard,
-  LineChart,
-  Link2,
-  ListChecks,
-  Menu,
-  PenLine,
-  Plug,
-  ScanSearch,
-  Search,
-  Settings2,
-  Shield,
-  Swords,
-  TrendingUp,
-  Wrench,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, BarChart3, Bookmark, Building2, CreditCard, FileBarChart, FileText, Globe, LayoutDashboard, LineChart, Link2, ListChecks, Menu, PenLine, Plug, ScanSearch, Search, Settings2, Shield, Sparkles, Swords, TrendingUp, Wrench, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { ORG_NAV, SITE_MODULES } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -63,9 +39,13 @@ export function AppSidebar({
   sites,
   isPlatformAdmin,
   hasDemo,
+  planId = "free",
+  isDemoOrg = false,
 }: {
   orgSlug: string;
   orgName: string;
+  planId?: string;
+  isDemoOrg?: boolean;
   orgs: { slug: string; name: string }[];
   sites: Site[];
   isPlatformAdmin: boolean;
@@ -97,7 +77,7 @@ export function AppSidebar({
             const v = e.target.value;
             router.push(v === "__new" ? "/onboarding?new=1" : v === "__demo" ? "/onboarding/demo" : `/app/${v}`);
           }}
-          className="h-9 w-full rounded-lg border border-white/10 bg-sidebar-2 px-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand"
+          className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm font-medium text-white shadow-inner transition-colors hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
         >
           {orgs.map((o) => (
             <option key={o.slug} value={o.slug}>
@@ -125,7 +105,7 @@ export function AppSidebar({
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-colors",
-                        active ? "bg-white/10 font-medium text-white" : "text-sidebar-ink hover:bg-white/5 hover:text-white",
+                        active ? "bg-brand/15 font-medium text-[var(--brand-ink)] shadow-[inset_2px_0_0_var(--brand)]" : "text-sidebar-ink hover:bg-white/5 hover:text-white",
                       )}
                     >
                       <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
@@ -143,7 +123,23 @@ export function AppSidebar({
           </div>
         ))}
 
-      <div className="mt-auto">
+      {!isDemoOrg && (
+        <Link
+          href={`/app/${orgSlug}/billing`}
+          className="group mx-1 mt-auto block shrink-0 overflow-hidden rounded-xl border border-brand/20 bg-[radial-gradient(120%_120%_at_0%_0%,rgb(46_196_173/0.18),transparent_60%)] p-3 transition-colors hover:border-brand/45"
+        >
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-white">
+            <Sparkles className="size-3.5 text-[var(--brand-ink)]" aria-hidden />
+            {planId.charAt(0).toUpperCase() + planId.slice(1)} plan
+          </p>
+          <p className="mt-1 text-[11px] leading-snug text-sidebar-ink/80">{planId === "agency" ? "Highest limits. View usage and billing." : "See usage and unlock higher limits."}</p>
+          <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--brand-ink)]">
+            {planId === "agency" ? "View usage" : "Upgrade"} <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </span>
+        </Link>
+      )}
+
+      <div className={cn("shrink-0", isDemoOrg && "mt-auto")}>
         <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-ink/50">{orgName}</p>
         <ul className="space-y-0.5">
           {ORG_NAV.map((item) => {
@@ -157,7 +153,7 @@ export function AppSidebar({
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-3 py-1.5",
-                    active ? "bg-white/10 font-medium text-white" : "text-sidebar-ink hover:bg-white/5 hover:text-white",
+                    active ? "bg-brand/15 font-medium text-[var(--brand-ink)] shadow-[inset_2px_0_0_var(--brand)]" : "text-sidebar-ink hover:bg-white/5 hover:text-white",
                   )}
                 >
                   <Icon className="size-4 opacity-80" aria-hidden />
@@ -192,7 +188,7 @@ export function AppSidebar({
       </button>
 
       {/* Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-sidebar lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/5 bg-sidebar bg-[radial-gradient(120%_40%_at_0%_0%,rgb(46_196_173/0.10),transparent_70%)] lg:flex">
         <div className="flex h-16 shrink-0 items-center px-5">
           <Logo href="/app" inverted />
         </div>

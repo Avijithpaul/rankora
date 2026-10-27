@@ -1,4 +1,5 @@
-import { FlaskConical } from "lucide-react";
+import Link from "next/link";
+import { Bell, FlaskConical } from "lucide-react";
 import { listMemberships, listWebsites, requireOrg } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { AppSidebar } from "@/components/app/sidebar";
@@ -15,6 +16,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
     supabase.from("platform_admins").select("role").eq("user_id", user.id).maybeSingle(),
     supabase.from("profiles").select("full_name, last_organization_id").eq("id", user.id).maybeSingle(),
   ]);
+  const { count: unread } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
 
   // Remember the last organization used (best-effort).
   if (profile && profile.last_organization_id !== org.id) {
@@ -23,6 +25,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
 
   return (
     <div className="min-h-dvh">
+      <div className="print:hidden">
       <AppSidebar
         orgSlug={org.slug}
         orgName={org.name}
@@ -30,15 +33,28 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
         sites={sites.map((s) => ({ id: s.id, name: s.name, domain: s.domain, is_demo: s.is_demo }))}
         isPlatformAdmin={Boolean(admin)}
         hasDemo={memberships.some((m) => m.org.is_demo)}
+        planId={org.plan_id}
+        isDemoOrg={org.is_demo}
       />
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-surface/90 pl-16 pr-4 backdrop-blur sm:pr-6 lg:pl-8">
+      </div>
+      <div className="app-backdrop min-h-dvh lg:pl-64 print:bg-none print:pl-0">
+        <header className="sticky top-0 z-20 flex h-16 print:hidden items-center gap-3 border-b border-line/70 bg-canvas/70 pl-16 pr-4 backdrop-blur-xl sm:pr-6 lg:pl-8">
           <SiteSwitcher
             orgSlug={org.slug}
             canAdd={!org.is_demo}
             sites={sites.map((s) => ({ id: s.id, name: s.name, domain: s.domain, is_demo: s.is_demo }))}
           />
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/app/${org.slug}/notifications`}
+              className="relative grid size-9 place-items-center rounded-lg text-ink-2 hover:bg-surface-2"
+              aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
+            >
+              <Bell className="size-5" aria-hidden />
+              {unread ? (
+                <span className="animate-pop absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-critical px-1 text-[10px] font-semibold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
+              ) : null}
+            </Link>
             <UserMenu orgSlug={org.slug} name={profile?.full_name ?? user.email ?? "Account"} email={user.email} role={role} />
           </div>
         </header>
@@ -51,7 +67,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
             </span>
           </div>
         )}
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:max-w-none print:p-0">{children}</main>
       </div>
     </div>
   );

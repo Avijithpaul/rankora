@@ -41,7 +41,7 @@ export function TaskProgress({
               </span>
             </div>
             <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${stats.completed} completed, ${stats.in_progress} in progress, ${stats.todo} to do`}>
-              {active > 0 && SEGMENTS.map((s) => <div key={s.key} className={s.cls} style={{ width: `${(stats[s.key] / active) * 100}%` }} />)}
+              {active > 0 && SEGMENTS.map((s) => <div key={s.key} className={cn("animate-grow-x", s.cls)} style={{ width: `${(stats[s.key] / active) * 100}%` }} />)}
             </div>
             <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
               {SEGMENTS.map((s) => (

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BarChart3, KeyRound, LineChart, ScanSearch, SearchCheck } from "lucide-react";
+import { ArrowRight, BarChart3, Eye, KeyRound, LineChart, Medal, MousePointerClick, Percent, ScanSearch, SearchCheck, UserRound, Users } from "lucide-react";
 import { requireWebsite } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { countryName, languageName } from "@/lib/locales";
@@ -194,7 +194,7 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
 
       {/* Health + KPIs */}
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card>
+        <Card className="glow-panel">
           <CardHeader
             title="SEO health score"
             description={latest ? `${formatNumber(latest.pages_analyzed)} pages audited · ${formatDate(latest.created_at)}` : "Calculated from your latest site audit"}
@@ -228,10 +228,11 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
         </Card>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:col-span-2">
-          <StatCard label="Clicks" value={hasGsc ? formatNumber(clicks, { compact: true }) : "—"} delta={hasPrevGsc ? relativeChange(clicks, prevClicks) : null} footer={gscFooter("Search Console")} />
-          <StatCard label="Impressions" value={hasGsc ? formatNumber(impressions, { compact: true }) : "—"} delta={hasPrevGsc ? relativeChange(impressions, prevImpr) : null} footer={gscFooter("Search Console")} />
-          <StatCard label="CTR" value={hasGsc ? formatPercent(ctr) : "—"} delta={hasPrevGsc && ctr !== null && prevCtr ? relativeChange(ctr, prevCtr) : null} footer={gscFooter("Clicks ÷ impressions")} />
+          <StatCard icon={MousePointerClick} label="Clicks" value={hasGsc ? formatNumber(clicks, { compact: true }) : "—"} delta={hasPrevGsc ? relativeChange(clicks, prevClicks) : null} footer={gscFooter("Search Console")} />
+          <StatCard icon={Eye} label="Impressions" value={hasGsc ? formatNumber(impressions, { compact: true }) : "—"} delta={hasPrevGsc ? relativeChange(impressions, prevImpr) : null} footer={gscFooter("Search Console")} />
+          <StatCard icon={Percent} label="CTR" value={hasGsc ? formatPercent(ctr) : "—"} delta={hasPrevGsc && ctr !== null && prevCtr ? relativeChange(ctr, prevCtr) : null} footer={gscFooter("Clicks ÷ impressions")} />
           <StatCard
+            icon={Medal}
             label="Avg. Google position"
             value={position ? position.toFixed(1) : "—"}
             delta={hasPrevGsc && position && prevPosition ? relativeChange(position, prevPosition) : null}
@@ -239,8 +240,8 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
             hint="Impression-weighted. Lower is better."
             footer={gscFooter("Impression-weighted")}
           />
-          <StatCard label="Organic traffic (sessions)" value={hasGa ? formatNumber(sessions, { compact: true }) : "—"} delta={hasPrevGa ? relativeChange(sessions, sum(gaPrev, (r) => r.sessions)) : null} footer={gaFooter("Google Analytics 4")} />
-          <StatCard label="Organic users" value={hasGa ? formatNumber(users, { compact: true }) : "—"} delta={hasPrevGa ? relativeChange(users, sum(gaPrev, (r) => r.users)) : null} footer={gaFooter("Google Analytics 4")} />
+          <StatCard icon={Users} label="Organic traffic (sessions)" value={hasGa ? formatNumber(sessions, { compact: true }) : "—"} delta={hasPrevGa ? relativeChange(sessions, sum(gaPrev, (r) => r.sessions)) : null} footer={gaFooter("Google Analytics 4")} />
+          <StatCard icon={UserRound} label="Organic users" value={hasGa ? formatNumber(users, { compact: true }) : "—"} delta={hasPrevGa ? relativeChange(users, sum(gaPrev, (r) => r.users)) : null} footer={gaFooter("Google Analytics 4")} />
         </div>
       </div>
 

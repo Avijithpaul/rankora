@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { PENDING_SITE_KEY } from "@/components/marketing/hero-audit-form";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input, Select } from "@/components/ui/form";
 import { COUNTRIES, LANGUAGES } from "@/lib/locales";
@@ -26,10 +27,32 @@ export function WebsiteForm({
   lockUrlHost?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, { ok: false });
+  const urlRef = useRef<HTMLInputElement>(null);
+  // A site typed on the landing page before sign-up pre-fills a NEW website (never overwrites).
+  useEffect(() => {
+    if (siteId || !urlRef.current || urlRef.current.value) return;
+    try {
+      const pending = localStorage.getItem(PENDING_SITE_KEY);
+      if (pending) urlRef.current.value = pending;
+    } catch {
+      /* storage unavailable */
+    }
+  }, [siteId]);
   const fe = state.fieldErrors ?? {};
   const v = { ...defaults, ...state.values };
   return (
-    <form action={formAction} className="space-y-5" noValidate>
+    <form
+      action={formAction}
+      className="space-y-5"
+      noValidate
+      onSubmit={() => {
+        try {
+          localStorage.removeItem(PENDING_SITE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }}
+    >
       <input type="hidden" name="orgSlug" value={orgSlug} />
       {siteId && <input type="hidden" name="siteId" value={siteId} />}
       {onboarding && <input type="hidden" name="onboarding" value="1" />}
@@ -41,7 +64,7 @@ export function WebsiteForm({
         error={fe.url}
         hint={lockUrlHost ? "You can change the protocol or start path, not the domain." : "e.g. https://www.example.com"}
       >
-        <Input id="url" name="url" inputMode="url" placeholder="https://example.com" defaultValue={v.url} required aria-invalid={Boolean(fe.url)} />
+        <Input ref={urlRef} id="url" name="url" inputMode="url" placeholder="https://example.com" defaultValue={v.url} required aria-invalid={Boolean(fe.url)} />
       </Field>
       <Field label="Display name" htmlFor="name" error={fe.name}>
         <Input id="name" name="name" placeholder="Marketing site" defaultValue={v.name} required aria-invalid={Boolean(fe.name)} />

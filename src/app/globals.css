@@ -4,22 +4,66 @@
  * Rankora design tokens. Components use semantic utilities
  * (bg-surface, text-muted, border-line, bg-brand …), never raw hex values.
  */
+/* Dark (default): deep navy-black with a teal accent. */
 :root {
-  --canvas: #f6f7f9;
+  color-scheme: dark;
+  --canvas: #060b10;
+  --surface: #0b141b;
+  --surface-2: #101d26;
+  --line: #182833;
+  --line-strong: #243a48;
+  --ink: #e9f2f3;
+  --ink-2: #b8c8ce;
+  --muted: #7f949d;
+  --brand: #2ec4ad;
+  --brand-hover: #4fd8c3;
+  --brand-soft: rgb(46 196 173 / 0.12);
+  --brand-ink: #7ee6d6;
+  --on-brand: #03211c;
+  --glow: rgb(46 196 173 / 0.22);
+  --sidebar: #050a0e;
+  --sidebar-2: #0d1a21;
+  --sidebar-ink: #a6bac2;
+
+  --critical: #f97066;
+  --critical-soft: rgb(249 112 102 / 0.12);
+  --warning: #fdb022;
+  --warning-soft: rgb(253 176 34 / 0.12);
+  --opportunity: #53b1fd;
+  --opportunity-soft: rgb(83 177 253 / 0.12);
+  --success: #47cd89;
+  --success-soft: rgb(71 205 137 / 0.12);
+  --demo: #b692f6;
+  --demo-soft: rgb(182 146 246 / 0.14);
+
+  --chart-1: #2ec4ad;
+  --chart-2: #53b1fd;
+  --chart-3: #fdb022;
+  --chart-4: #b692f6;
+  --chart-5: #f670c7;
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+/* Light: same teal brand, darkened for contrast on white. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #f5f8f8;
   --surface: #ffffff;
-  --surface-2: #f1f3f6;
-  --line: #e3e6eb;
-  --line-strong: #cfd4dc;
-  --ink: #0f1729;
-  --ink-2: #344054;
-  --muted: #667085;
-  --brand: #2445d6;
-  --brand-hover: #1b37b3;
-  --brand-soft: #eaefff;
-  --brand-ink: #1a2f8f;
-  --sidebar: #0d1424;
-  --sidebar-2: #162036;
-  --sidebar-ink: #c9d1e3;
+  --surface-2: #eef3f3;
+  --line: #dfe7e8;
+  --line-strong: #c7d3d5;
+  --ink: #0b1a1f;
+  --ink-2: #33474e;
+  --muted: #607379;
+  --brand: #0e8f7d;
+  --brand-hover: #0a7465;
+  --brand-soft: #e3f5f2;
+  --brand-ink: #075e52;
+  --on-brand: #ffffff;
+  --glow: rgb(14 143 125 / 0.14);
+  --sidebar: #071216;
+  --sidebar-2: #102229;
+  --sidebar-ink: #b4c7cd;
 
   --critical: #d92d20;
   --critical-soft: #fef3f2;
@@ -32,11 +76,12 @@
   --demo: #6941c6;
   --demo-soft: #f4f3ff;
 
-  --chart-1: #2445d6;
-  --chart-2: #12b76a;
+  --chart-1: #0e8f7d;
+  --chart-2: #2e90fa;
   --chart-3: #f79009;
   --chart-4: #7a5af8;
   --chart-5: #ee46bc;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
 }
 
 @theme inline {
@@ -52,6 +97,7 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-soft: var(--brand-soft);
   --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
   --color-sidebar: var(--sidebar);
   --color-sidebar-2: var(--sidebar-2);
   --color-sidebar-ink: var(--sidebar-ink);
@@ -66,13 +112,10 @@
   --color-demo: var(--demo);
   --color-demo-soft: var(--demo-soft);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-geist-sans), ui-sans-serif, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --radius-card: 0.75rem;
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
-}
-
-html {
-  color-scheme: light;
+  --radius-card: 1rem;
+  --shadow-card: var(--shadow);
 }
 
 body {
@@ -87,6 +130,278 @@ body {
   outline-offset: 2px;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--brand) 35%, transparent);
+  color: var(--ink);
+}
+
+/* Slim themed scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--brand) 55%, var(--line-strong)); background-clip: content-box; }
+
+/* Card surface: a faint teal light from the top edge */
+.card-surface {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--brand) 5%, var(--surface)) 0%, var(--surface) 42%);
+}
+
+/* App backdrop: soft glow behind page content */
+.app-backdrop {
+  background:
+    radial-gradient(900px 420px at 85% -120px, var(--glow), transparent 70%),
+    radial-gradient(700px 360px at 0% 0%, color-mix(in srgb, var(--opportunity) 7%, transparent), transparent 70%);
+}
+
+/* Glow panel: radial light behind a hero element (e.g. the score ring) */
+.glow-panel {
+  background:
+    radial-gradient(260px 200px at 18% 55%, var(--glow), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--brand) 6%, var(--surface)) 0%, var(--surface) 55%);
+}
+
+/* Gradient border (used for the featured plan) */
+.gradient-border {
+  position: relative;
+  border-color: transparent !important;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--brand-ink), var(--brand) 40%, transparent 70%, var(--brand));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Headings use the display face. */
+h1,
+h2 {
+  font-family: var(--font-display);
+}
+
+/* Marketing backdrop: soft teal glow over a faint grid. */
+.hero-glow {
+  background:
+    radial-gradient(60% 55% at 50% 0%, var(--glow), transparent 70%),
+    linear-gradient(to right, color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px) 0 0 / 56px 56px,
+    linear-gradient(to bottom, color-mix(in srgb, var(--line) 35%, transparent) 1px, transparent 1px) 0 0 / 56px 56px;
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, var(--brand), var(--brand-ink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------------
+ * Motion. Short, subtle and GPU-friendly (opacity / transform only).
+ * Everything is switched off for users who prefer reduced motion.
+ * --------------------------------------------------------------------------- */
+@keyframes rk-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rk-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes rk-ring {
+  from { stroke-dashoffset: var(--ring-c); }
+}
+@keyframes rk-glow {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+@keyframes rk-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes rk-shine {
+  to { background-position: 200% center; }
+}
+@keyframes rk-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes rk-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* page enter (route templates) */
+.page-enter {
+  animation: rk-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* children appear one after another */
+.stagger > * {
+  animation: rk-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > *:nth-child(7) { animation-delay: 360ms; }
+.stagger > *:nth-child(n + 8) { animation-delay: 420ms; }
+
+/* automatic stagger: animated items inside any grid appear one after another */
+:where(.grid) > :nth-child(2) { animation-delay: 50ms; }
+:where(.grid) > :nth-child(3) { animation-delay: 100ms; }
+:where(.grid) > :nth-child(4) { animation-delay: 150ms; }
+:where(.grid) > :nth-child(5) { animation-delay: 200ms; }
+:where(.grid) > :nth-child(6) { animation-delay: 250ms; }
+:where(.grid) > :nth-child(7) { animation-delay: 300ms; }
+:where(.grid) > :nth-child(n + 8) { animation-delay: 350ms; }
+
+.animate-fade-up { animation: rk-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-scale-in { animation: rk-scale-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-grow-x { transform-origin: left; animation: rk-grow-x 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-ring { animation: rk-ring 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-float { animation: rk-float 4s ease-in-out infinite; }
+.animate-pop { animation: rk-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.delay-1 { animation-delay: 80ms; }
+.delay-2 { animation-delay: 160ms; }
+.delay-3 { animation-delay: 240ms; }
+.delay-4 { animation-delay: 320ms; }
+
+.hero-glow { animation: rk-glow 6s ease-in-out infinite; }
+.text-gradient {
+  background-size: 200% auto;
+  background-image: linear-gradient(90deg, var(--brand), var(--brand-ink), var(--brand));
+  animation: rk-shine 6s linear infinite;
+}
+
+/* scroll reveal (components/motion/reveal.tsx): CSS scroll-driven, no JS.
+   Unsupported browsers show the content without animation. */
+@supports (animation-timeline: view()) {
+  [data-reveal] {
+    animation: rk-fade-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+
+/* loading skeleton shimmer */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 6%, transparent), transparent);
+  animation: rk-shimmer 1.4s infinite;
+}
+
+/* lift on hover for interactive cards */
+/* uses `translate` (not `transform`), so it also works on elements whose enter animation holds a transform */
+.hover-lift {
+  transition: translate 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, border-color 0.25s;
+}
+.hover-lift:hover {
+  translate: 0 -3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    animation: none !important;
+  }
+}
+
+/* Printable reports: always the light palette on white paper. */
+@media print {
+  :root {
+    color-scheme: light;
+    --canvas: #f5f8f8;
+    --surface: #ffffff;
+    --surface-2: #eef3f3;
+    --line: #dfe7e8;
+    --line-strong: #c7d3d5;
+    --ink: #0b1a1f;
+    --ink-2: #33474e;
+    --muted: #607379;
+    --brand: #0e8f7d;
+    --brand-hover: #0a7465;
+    --brand-soft: #e3f5f2;
+    --brand-ink: #075e52;
+    --on-brand: #ffffff;
+    --glow: rgb(14 143 125 / 0.14);
+    --sidebar: #071216;
+    --sidebar-2: #102229;
+    --sidebar-ink: #b4c7cd;
+  
+    --critical: #d92d20;
+    --critical-soft: #fef3f2;
+    --warning: #b54708;
+    --warning-soft: #fffaeb;
+    --opportunity: #175cd3;
+    --opportunity-soft: #eff8ff;
+    --success: #067647;
+    --success-soft: #ecfdf3;
+    --demo: #6941c6;
+    --demo-soft: #f4f3ff;
+  
+    --chart-1: #0e8f7d;
+    --chart-2: #2e90fa;
+    --chart-3: #f79009;
+    --chart-4: #7a5af8;
+    --chart-5: #ee46bc;
+    --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  }
+  @page {
+    margin: 14mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .report-section {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
 }

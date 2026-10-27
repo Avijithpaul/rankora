@@ -54,13 +54,13 @@ try {
        where n.nspname = 'public' and c.relkind = 'r' order by 1`,
     )
   ).rows;
-  check("public tables created", tables.length === 41, `${tables.length} tables`);
+  check("public tables created", tables.length === 43, `${tables.length} tables`);
   const noRls = tables.filter((t) => !t.relrowsecurity).map((t) => t.relname);
   check("RLS enabled on every public table", noRls.length === 0, noRls.join(", "));
   const policies = (await client.query<{ n: number }>(`select count(*)::int n from pg_policies where schemaname = 'public'`)).rows[0].n;
   check("RLS policies present", policies > 60, `${policies} policies`);
   const plans = (await client.query<{ n: number }>(`select count(*)::int n from public.plans`)).rows[0].n;
-  check("plan catalog seeded", plans === 3);
+  check("plan catalog seeded (free, starter, pro, agency)", plans === 4);
 
   // ---- throw-away users -------------------------------------------------------
   const A = randomUUID();
@@ -132,7 +132,7 @@ try {
   // ---- anon -------------------------------------------------------------------------
   await as(null, async () => {
     const p = (await client.query(`select count(*)::int n from public.plans`)).rows[0].n;
-    check("anonymous visitors can read the public plan catalog", p === 3);
+    check("anonymous visitors can read the public plan catalog", p === 4);
     check(
       "anonymous visitors cannot read websites",
       await expectError(() => client.query(`select id from public.websites`), /permission denied/),

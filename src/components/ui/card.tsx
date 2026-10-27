@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]", className)}
+      className={cn("card-surface animate-fade-up rounded-[var(--radius-card)] border border-line shadow-[var(--shadow-card)] transition-[border-color,box-shadow] duration-300", className)}
       {...props}
     />
   );

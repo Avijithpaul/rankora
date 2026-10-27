@@ -20,11 +20,14 @@ export function EmptyState({
   return (
     <div className={cn("flex flex-col items-center justify-center px-6 py-14 text-center", className)}>
       {Icon && (
-        <div className="mb-4 grid size-11 place-items-center rounded-xl border border-line bg-surface-2 text-muted">
-          <Icon className="size-5" aria-hidden />
+        <div className="relative mb-5">
+          <div className="absolute inset-0 rounded-2xl bg-brand/25 blur-xl" aria-hidden />
+          <div className="relative grid size-14 place-items-center rounded-2xl border border-brand/25 bg-brand-soft text-brand">
+            <Icon className="size-6" aria-hidden />
+          </div>
         </div>
       )}
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      <h3 className="text-base font-semibold text-ink">{title}</h3>
       {description && <div className="mt-1 max-w-md text-sm text-muted">{description}</div>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -45,7 +48,7 @@ export function ErrorState({
       <div className="mb-4 grid size-11 place-items-center rounded-xl bg-critical-soft text-critical">
         <AlertTriangle className="size-5" aria-hidden />
       </div>
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      <h3 className="text-base font-semibold text-ink">{title}</h3>
       {description && <div className="mt-1 max-w-md text-sm text-muted">{description}</div>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -53,7 +56,7 @@ export function ErrorState({
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-surface-2", className)} aria-hidden />;
+  return <div className={cn("skeleton-shimmer rounded-md bg-surface-2", className)} aria-hidden />;
 }
 
 /** Honest placeholder for modules that are not implemented yet. */

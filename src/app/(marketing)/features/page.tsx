@@ -13,7 +13,7 @@ export default function FeaturesPage() {
       <p className="mt-3 max-w-2xl text-muted">From technical audits to rankings and reporting — built around data you can verify.</p>
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         {MARKETING_FEATURES.map((f) => (
-          <Link key={f.slug} href={`/${f.slug}`} className="group rounded-xl border border-line p-6 hover:border-brand/40">
+          <Link key={f.slug} href={`/${f.slug}`} className="animate-fade-up hover-lift group rounded-xl border border-line bg-surface/60 p-6 hover:border-brand/40 hover:shadow-[0_0_40px_var(--glow)]">
             <p className="text-sm font-semibold text-brand">{f.name}</p>
             <h2 className="mt-2 text-lg font-semibold">{f.headline}</h2>
             <p className="mt-2 text-sm text-muted">{f.intro}</p>

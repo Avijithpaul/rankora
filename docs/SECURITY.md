@@ -107,6 +107,29 @@
 * Rate limits per user per hour: 20 competitor keyword refreshes, 30 homepage snapshots, 30 page comparisons, 5 backlink
   syncs; plus monthly keyword-lookup and backlink-sync quotas.
 
+## Reports (Phase 7)
+
+* Reports are built by the server from data read as the user (RLS) and stored with the service role; clients can only read
+  and delete them (member+). Building for another website re-runs `requireWebsite` for that website.
+* `reports.is_demo` is set by a trigger from the website, so a demo report can never be stored as live data.
+* The export endpoint reads the report as the signed-in user (other tenants get 404), sends `no-store`, `nosniff` and an
+  attachment filename; CSV cells are protected against formula injection. 30 reports per user per hour.
+
+## SaaS readiness (Phase 8)
+
+* Plan limits for websites, members, tracked keywords and competitors are enforced by database triggers as well as
+  in server actions, so calling the Data API directly cannot exceed them. A website's `base_url` must stay on its domain.
+* Membership can only be created by `create_organization()` or by accepting an invitation on the server; clients cannot
+  insert members. Invitation tokens are 32 random bytes, stored as SHA-256, single use, 7-day expiry, and require the
+  signed-in user's confirmed email to match. Only owners grant, change or remove owners; the last owner is protected.
+* Google properties: Search Console properties must match the website's domain; only the connecting user or an admin
+  chooses a property.
+* Billing: no payments without explicit configuration and `BILLING_LIVE_APPROVED=true`. Stripe webhooks are HMAC-verified
+  (5-minute tolerance, constant-time) and idempotent (`billing_events` unique event id). Plan changes are audited.
+* Errors: user-facing messages are generic; details go to `system_events` with secrets redacted. Platform admins only.
+* Headers: CSP `frame-ancestors 'none'; base-uri 'self'; object-src 'none'`, COOP `same-origin`, in addition to HSTS etc.
+* Full review and outcomes: [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md#security-review).
+
 ## Abuse and cost controls
 
 * `rate_limit_hit()` (DB-backed, per user) for expensive operations: crawls, keyword lookups, PageSpeed calls.

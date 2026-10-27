@@ -23,7 +23,9 @@ a foundation for a commercial product.
 | 4 | Google Search Console & GA4: secure OAuth, property selection, sync, Analytics + Search Performance sections | ✅ Done |
 | 5 | Page Explorer, Content Optimizer (URL or draft), optional labelled AI suggestions, analysis history | ✅ Done |
 | 6 | Competitors (rankings, overlap/gaps, homepage & page comparison), backlink provider abstraction, SEO Tasks | ✅ Done |
-| 7 | Reports, billing (Stripe), invitations, admin console, hardening | Planned |
+| 7 | Reports (six types, comparison, print, JSON/CSV export, PDF architecture), Academic Demo Mode, project documentation | ✅ Done |
+| 8 | SaaS readiness: plans & limits, subscriptions, billing abstraction, team invitations, notifications, admin monitoring, security review, E2E | ✅ Done |
+| 9 | Launch: activate payments (with approval), email, MFA, monitoring | Planned |
 
 Unbuilt modules are visible in the app with an explicit **“Planned · Phase N”** page — never placeholder numbers.
 Details: [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -58,6 +60,13 @@ Details: [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/ROADMAP.md](docs/ROADMAP.
   links; shows “Provider Not Connected” until enabled — never estimated.
 - **SEO Tasks** — turn audit issues into tasks (one click or in bulk) with page, priority, status (To Do / In Progress /
   Completed / Ignored), assignee, due date, source issue and notes; board, filters and dashboard progress.
+- **Reports** — SEO Overview, Site Audit, Keyword Rankings, Organic Traffic, Search Performance and Monthly SEO
+  Summary for any website and date range, with period comparison; frozen snapshots, printable page, JSON/CSV export;
+  every section names its data source.
+- **Academic Demo Mode** — `/academic-demo` presentation flow and `/project` technical documentation for a viva.
+- **Plans & teams** — Free / Starter / Pro / Agency with usage limits enforced on the server and in the database,
+  usage meters and upgrade UI, team invitations and roles, in-app notifications, activity log, admin monitoring.
+  Online payments are built (Stripe) but **not activated**.
 - **Social sign-in** — Google and GitHub sign-in/sign-up via Supabase (enable the providers in Supabase).
 - **Demo Project** — a separate, read-only workspace with sample data labelled **Demo Data** for presentations.
 
@@ -121,6 +130,7 @@ Open http://localhost:3000, register, and follow onboarding. Choose **Open Demo 
 | `PAGESPEED_API_KEY` | optional | Core Web Vitals in audits |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | optional | live keyword data and rank tracking |
 | `BACKLINK_PROVIDER` | optional | `dataforseo` enables the Backlinks module (needs the DataForSEO Backlinks subscription) |
+| `BILLING_PROVIDER`, `BILLING_LIVE_APPROVED`, `STRIPE_*` | optional | payments stay off unless all are set and approved — see PRODUCTION-READINESS.md |
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | optional | AI suggestions in the Content Optimizer (default model `claude-opus-5-5`) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Search Console + GA4 OAuth (redirect URI `<site>/api/integrations/google/callback`) |
 
@@ -143,11 +153,13 @@ insert into public.platform_admins (user_id, role) values ('<your auth user id>'
 | `npm test` | all unit + database tests (Vitest, PGlite) |
 | `npm run test:db` | migrations + RLS tests on embedded Postgres |
 | `npm run check` | lint + typecheck + tests + build |
+| `npm run test:e2e` | Playwright E2E + responsive checks (Microsoft Edge) against `npm run start`; needs `.env.local` with the service key |
 | `npm run db:migrate` | apply pending migrations to `DATABASE_URL` (`-- --status` to list) |
 | `npm run db:verify` | live RLS / tenant-isolation checks (rolled back) |
 | `npm run db:types` | regenerate `src/lib/supabase/database.types.ts` from migrations |
 | `npm run audit:live-check -- <url> <pages>` | real audit end-to-end with a temporary org, then cleanup |
 | `npm run google:live-check` | Google OAuth/sync pipeline on the live DB with simulated Google APIs, then cleanup |
+| `npm run reports:live-check` | all six report types from the Demo Project and a real audit, checked against SQL sums, then cleanup |
 | `npm run phase6:live-check` | competitors, backlinks (test-double provider) and tasks on the live DB, then cleanup |
 | `npm run content:live-check` | Page Explorer + Content Optimizer pipeline on the live DB against a real site, then cleanup |
 | `npm run keywords:live-check` | keyword + rank pipeline on the live DB with a labelled fake provider, then cleanup |
@@ -169,6 +181,9 @@ src/
     competitors/          comparison logic, snapshots, ranked-keyword overlap
     backlinks/            backlink sync service
     tasks/                task validation and helpers
+    billing/              plans, entitlements, usage, billing providers (manual, Stripe)
+    team/                 invitations
+    reports/              report periods, snapshot builder, exporters
     content/              Content Optimizer analyzer, term sources, page recommendations
     ai/                   optional AI suggestion providers (Claude adapter)
     providers/            KeywordProvider / RankProvider, DataForSEO adapter, demo provider, registry
@@ -188,7 +203,7 @@ docs/                     architecture, database, scoring, integrations, securit
 npm run check
 ```
 
-309 automated tests cover the scoring engine, crawler (including SSRF protection against a real local server),
+347 automated tests (plus 15 Playwright E2E tests) cover the scoring engine, crawler (including SSRF protection against a real local server),
 HTML parser, robots/sitemap parsing, content analyzer, AI prompt/output handling, analyzer rules, provider adapters, CSV handling, validation, encryption, and
 database security (RLS, column privileges, triggers, tenant isolation). Live-database scripts verify the same
 guarantees against Supabase.
@@ -218,4 +233,6 @@ See [docs/SECURITY.md](docs/SECURITY.md).
 - [SEO scoring](docs/SEO-SCORING.md) — formula, weights, every rule and threshold
 - [Integrations](docs/INTEGRATIONS.md) — DataForSEO, PageSpeed, Google OAuth design, Demo Mode, CSV
 - [Security](docs/SECURITY.md)
+- [Production readiness](docs/PRODUCTION-READINESS.md) — Ready / Partially ready / Blocked / Requires paid API / Requires credentials / Future
+- [Project documentation](docs/PROJECT-DOCUMENTATION.md) — frontend, backend, database, APIs, security, crawler, auth, charts, CRUD
 - [Roadmap](docs/ROADMAP.md) · [Progress log](docs/PROGRESS.md) · [Academic demo guide](docs/ACADEMIC-DEMO.md)

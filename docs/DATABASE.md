@@ -15,6 +15,8 @@ PostgreSQL on Supabase. Migrations live in `supabase/migrations/` and are applie
 | `…0009_google_integrations.sql` | Google connection status/account id (one active per org + account), integration sync state/claims, date indexes, SQL aggregations `gsc_breakdown` / `ga_breakdown` / `rank_distribution` (security invoker), `keywords.previous_checked_on` |
 | `…0010_content_optimizer.sql` | `content_analyses` scoring version / word count / AI timestamp + URL check + site index; `url_path()`; `page_explorer()` joining crawl pages with GSC, GA4, issues and keywords (security invoker) |
 | `…0011_competitors_backlinks_tasks.sql` | `competitor_rankings` (same-SERP positions), `domain_keyword_snapshots`, `competitor_snapshots`, `backlink_syncs`; `backlinks.is_new/is_lost/link_type`; `backlink_referring_domains()`, `backlink_anchors()`, `task_stats()`; one open task per issue + issue-website trigger; column grants on competitors and seo_tasks |
+| `…0012_reports.sql` | `reports.type` + `search_performance`; `snapshot_version`, `is_demo` (trigger copies the website's demo flag), `compare_mode`; org index |
+| `…0013_saas.sql` | Free/Starter/Pro/Agency catalog; subscription → org plan trigger; `billing_events`; `organization_invitations`; `ai_credits` metric + `usage_summary()`; DB-enforced member / website / tracked-keyword / competitor limits; website `base_url` must match its domain; owner-removal guard; client INSERT on members revoked; URL scheme checks |
 
 ## Entity relationships
 

@@ -139,7 +139,7 @@ describe("tenant isolation (RLS)", () => {
           [aliceOrg],
         ),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/row-level security|Website limit reached/);
     await expect(
       asUser(db, ALICE, (tx) => tx.query(`update public.websites set is_demo = true where id = $1`, [aliceSite])),
     ).rejects.toThrow(/permission denied/);

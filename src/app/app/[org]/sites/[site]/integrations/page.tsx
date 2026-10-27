@@ -33,6 +33,8 @@ const MESSAGES: Record<string, [string, "success" | "error" | "info"]> = {
   no_scopes: ["No Search Console or Analytics permission was granted.", "error"],
   no_refresh_token: ["Google did not return offline access. Remove Rankora in your Google account permissions and connect again.", "error"],
   property_not_found: ["That property is not accessible with the connected Google account.", "error"],
+  property_mismatch: ["That Search Console property belongs to a different domain than this website.", "error"],
+  property_forbidden: ["Only the person who connected this Google account, or an organization admin, can choose its property.", "error"],
   forbidden: ["You don't have permission to manage integrations for this website.", "error"],
   demo: ["The Demo Project uses sample data and cannot connect Google accounts.", "info"],
   rate_limited: ["Too many connection attempts. Please wait a while.", "error"],

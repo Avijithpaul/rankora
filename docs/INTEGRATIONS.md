@@ -150,6 +150,26 @@ interface BacklinkProvider { summary(target); backlinks(target, { limit, status:
 * Field names follow the DataForSEO v3 documentation (checked 2026-10-28); parsers are fixture-tested, but not yet run
   against the live API.
 
+## Billing (Phase 8)
+
+`BillingProvider { createCheckout, createPortal, parseWebhook }` in `src/lib/billing/provider.ts`.
+
+| Provider | Status | Notes |
+|---|---|---|
+| manual | active | no payments; platform superadmins set plans in `/admin` (audited) |
+| stripe | built, **not activated** | Checkout (subscription mode, org + plan in metadata), Billing Portal, webhook `/api/billing/webhook` for `checkout.session.completed` and `customer.subscription.created/updated/deleted`. Activated only when `BILLING_PROVIDER=stripe`, `BILLING_LIVE_APPROVED=true`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the three price ids are set. Not yet run against Stripe. |
+
+## Report export (Phase 7)
+
+`src/lib/reports/export.ts` defines `ReportExporter { format, label, available(), render(report) }`. All exporters render
+the same frozen snapshot, so a file always matches the on-screen report.
+
+| Format | Status | Notes |
+|---|---|---|
+| JSON | available | full snapshot |
+| CSV | available | one row per metric: section, metric, current, previous, change, source |
+| PDF | planned | a renderer service (e.g. headless Chromium) opens the printable report page with a short-lived signed token and returns a PDF; enabled by `PDF_RENDERER_URL`. Until then the API answers 501 and users print the page (“Save as PDF”). |
+
 ## AI suggestions (optional, Phase 5)
 
 `src/lib/ai/` holds a provider-neutral interface, `AiProvider.generate(task, context)`, for six tasks: `titles`, `meta_descriptions`,

@@ -28,10 +28,12 @@ export function ScoreRing({ score, size = 96, className }: { score: number | nul
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c - (c * value) / 100}
+          className="animate-ring"
+          style={{ "--ring-c": c } as React.CSSProperties}
         />
       </svg>
       <div className="absolute text-center" aria-label={score === null ? "No score yet" : `SEO score ${Math.round(value)} of 100`}>
-        <div className="tabular text-2xl font-semibold text-ink">{score === null ? "—" : Math.round(value)}</div>
+        <div className="tabular animate-scale-in delay-3 text-2xl font-semibold text-ink">{score === null ? "—" : Math.round(value)}</div>
         {band && <div className="text-[11px] font-medium text-muted">{band.label}</div>}
       </div>
     </div>

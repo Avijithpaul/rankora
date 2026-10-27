@@ -245,6 +245,47 @@ export type Database = {
           { foreignKeyName: "backlinks_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
         ];
       };
+      billing_events: {
+        Row: {
+          id: string;
+          provider: string;
+          event_id: string;
+          type: string;
+          organization_id: string | null;
+          payload: Json;
+          status: string;
+          error: string | null;
+          received_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          provider: string;
+          event_id: string;
+          type: string;
+          organization_id?: string | null;
+          payload?: Json;
+          status?: string;
+          error?: string | null;
+          received_at?: string;
+          processed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          provider?: string;
+          event_id?: string;
+          type?: string;
+          organization_id?: string | null;
+          payload?: Json;
+          status?: string;
+          error?: string | null;
+          received_at?: string;
+          processed_at?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "billing_events_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
       competitor_rankings: {
         Row: {
           organization_id: string;
@@ -1160,6 +1201,50 @@ export type Database = {
           { foreignKeyName: "oauth_states_website_id_fkey"; columns: ["website_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id"] },
         ];
       };
+      organization_invitations: {
+        Row: {
+          id: string;
+          organization_id: string;
+          email: string;
+          role: Database["public"]["Enums"]["org_role"];
+          token_hash: string;
+          invited_by: string | null;
+          expires_at: string;
+          accepted_at: string | null;
+          accepted_by: string | null;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          email: string;
+          role?: Database["public"]["Enums"]["org_role"];
+          token_hash: string;
+          invited_by?: string | null;
+          expires_at: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          email?: string;
+          role?: Database["public"]["Enums"]["org_role"];
+          token_hash?: string;
+          invited_by?: string | null;
+          expires_at?: string;
+          accepted_at?: string | null;
+          accepted_by?: string | null;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "organization_invitations_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
       organization_members: {
         Row: {
           organization_id: string;
@@ -1231,6 +1316,7 @@ export type Database = {
           is_active: boolean;
           sort_order: number;
           created_at: string;
+          features: Json;
         };
         Insert: {
           id: string;
@@ -1241,6 +1327,7 @@ export type Database = {
           is_active?: boolean;
           sort_order?: number;
           created_at?: string;
+          features?: Json;
         };
         Update: {
           id?: string;
@@ -1251,6 +1338,7 @@ export type Database = {
           is_active?: boolean;
           sort_order?: number;
           created_at?: string;
+          features?: Json;
         };
         Relationships: [
         ];
@@ -1327,6 +1415,9 @@ export type Database = {
           snapshot: Json;
           created_by: string | null;
           created_at: string;
+          snapshot_version: number;
+          is_demo: boolean;
+          compare_mode: string;
         };
         Insert: {
           id?: string;
@@ -1342,6 +1433,9 @@ export type Database = {
           snapshot?: Json;
           created_by?: string | null;
           created_at?: string;
+          snapshot_version?: number;
+          is_demo?: boolean;
+          compare_mode?: string;
         };
         Update: {
           id?: string;
@@ -1357,6 +1451,9 @@ export type Database = {
           snapshot?: Json;
           created_by?: string | null;
           created_at?: string;
+          snapshot_version?: number;
+          is_demo?: boolean;
+          compare_mode?: string;
         };
         Relationships: [
           { foreignKeyName: "reports_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
@@ -1745,6 +1842,7 @@ export type Database = {
           cancel_at_period_end: boolean;
           created_at: string;
           updated_at: string;
+          trial_end: string | null;
         };
         Insert: {
           id?: string;
@@ -1759,6 +1857,7 @@ export type Database = {
           cancel_at_period_end?: boolean;
           created_at?: string;
           updated_at?: string;
+          trial_end?: string | null;
         };
         Update: {
           id?: string;
@@ -1773,6 +1872,7 @@ export type Database = {
           cancel_at_period_end?: boolean;
           created_at?: string;
           updated_at?: string;
+          trial_end?: string | null;
         };
         Relationships: [
           { foreignKeyName: "subscriptions_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: true; referencedRelation: "organizations"; referencedColumns: ["id"] },
@@ -1952,11 +2052,13 @@ export type Database = {
       create_organization: { Args: { p_name: string; p_slug: string }; Returns: string };
       ga_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; users: number | null; new_users: number | null; sessions: number | null; engaged_sessions: number | null; page_views: number | null; source: string | null }[] };
       gsc_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null; source: string | null }[] };
+      org_member_by_email: { Args: { p_org: string; p_email: string }; Returns: boolean };
       page_explorer: { Args: { p_site: string; p_job: string; p_from: string; p_to: string; p_search?: string; p_status?: string; p_indexable?: string; p_sort?: string; p_limit?: number; p_offset?: number }; Returns: { page_id: string | null; url: string | null; title: string | null; fetch_state: string | null; status_code: number | null; is_indexable: boolean | null; indexability_reason: string | null; word_count: number | null; inbound_links: number | null; response_time_ms: number | null; depth: number | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null; gsc_source: string | null; users: number | null; sessions: number | null; page_views: number | null; ga_source: string | null; open_issues: number | null; keywords: number | null; total_count: number | null }[] };
       rank_distribution: { Args: { p_site: string; p_from: string }; Returns: { date: string | null; top3: number | null; top10: number | null; top20: number | null; top100: number | null; not_ranking: number | null; source: string | null }[] };
       rate_limit_hit: { Args: { p_bucket: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
       task_stats: { Args: { p_org: string; p_site?: string }; Returns: { todo: number | null; in_progress: number | null; completed: number | null; ignored: number | null; overdue: number | null; completed_30d: number | null; due_7d: number | null }[] };
       url_path: { Args: { p_url: string }; Returns: string };
+      usage_summary: { Args: { p_org: string }; Returns: { metric: string | null; used: number | null }[] };
     };
     Enums: {
       org_role: "owner" | "admin" | "member" | "viewer";

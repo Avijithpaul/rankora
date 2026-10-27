@@ -11,6 +11,7 @@ import { fieldErrorsOf, formValues, type ActionState } from "@/lib/validation/sc
 import { MAX_DRAFT_CHARS } from "@/lib/content/document";
 import { generateAiSuggestion, runContentAnalysis } from "@/lib/content/service";
 import { AI_TASKS } from "@/lib/ai/types";
+import { checkEntitlement, recordUsage } from "@/lib/billing/usage";
 
 const FIELDS = ["mode", "keyword", "url", "title", "metaDescription", "body", "terms"];
 
@@ -38,7 +39,7 @@ export async function analyzeContentAction(_prev: ActionState, formData: FormDat
   const ctx = await requireWebsite(orgSlug, siteId);
   if (!roleAtLeast(ctx.role, "member")) return { ok: false, message: "Viewers cannot run content analyses.", values };
   if (ctx.website.is_demo) return { ok: false, message: "The Demo Project is read-only. Add a real website to analyze content.", values };
-  if (!providerConfig().serviceRoleConfigured) return { ok: false, message: "SUPABASE_SECRET_KEY is not configured on the server, so analyses cannot be saved.", values };
+  if (!providerConfig().serviceRoleConfigured) return { ok: false, message: "This feature is not fully configured on the server yet. Please contact the administrator.", values };
 
   const parsed = analyzeSchema.safeParse(Object.fromEntries(FIELDS.map((k) => [k, formData.get(k) ?? undefined])));
   if (!parsed.success) return { ok: false, message: "Please fix the highlighted fields.", fieldErrors: fieldErrorsOf(parsed.error), values };
@@ -64,13 +65,18 @@ export async function generateAiSuggestionAction(formData: FormData) {
   if (!parsed.success) redirect(`${base}?error=invalid`);
   const back = `${base}/${parsed.data.analysisId}`;
   if (!roleAtLeast(ctx.role, "member")) redirect(`${back}?ai_error=${encodeURIComponent("Viewers cannot request AI suggestions.")}#ai`);
+  if (ctx.website.is_demo) redirect(`${back}?ai_error=${encodeURIComponent("The Demo Project is read-only.")}#ai`);
 
   const supabase = await createClient();
   const { data: allowed } = await supabase.rpc("rate_limit_hit", { p_bucket: "ai.suggest", p_limit: 30, p_window_seconds: 3600 });
   if (!allowed) redirect(`${back}?ai_error=${encodeURIComponent("AI suggestion limit reached (30 per hour). Try again later.")}#ai`);
 
+  const quota = await checkEntitlement(ctx.org.id, "ai_credits_per_month");
+  if (quota.message) redirect(`${back}?ai_error=${encodeURIComponent(quota.message)}#ai`);
   const r = await generateAiSuggestion(parsed.data.analysisId, parsed.data.task, ctx.website);
   if (!r.ok) redirect(`${back}?ai_error=${encodeURIComponent(r.message)}#ai`);
+  // one AI credit per successful suggestion set
+  await recordUsage({ orgId: ctx.org.id, websiteId: ctx.website.id, metric: "ai_credits", quantity: 1, metadata: { task: parsed.data.task } });
   await recordAudit({ organizationId: ctx.org.id, actorId: ctx.user.id, action: "content.ai_suggestion", entityType: "content_analysis", entityId: parsed.data.analysisId, metadata: { task: parsed.data.task } });
   revalidatePath(back);
   redirect(`${back}?ai=${parsed.data.task}#ai-${parsed.data.task}`);

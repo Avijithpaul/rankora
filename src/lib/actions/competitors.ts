@@ -22,7 +22,7 @@ async function editor(formData: FormData, backPath: (base: string) => string) {
   const back = backPath(base);
   if (!roleAtLeast(ctx.role, "member")) redirect(withMsg(back, "error", "Viewers cannot change competitors."));
   if (ctx.website.is_demo) redirect(withMsg(back, "error", "The Demo Project is read-only."));
-  if (!providerConfig().serviceRoleConfigured) redirect(withMsg(back, "error", "SUPABASE_SECRET_KEY is not configured on the server."));
+  if (!providerConfig().serviceRoleConfigured) redirect(withMsg(back, "error", "This feature is not fully configured on the server yet. Please contact the administrator."));
   return { ...ctx, base, back };
 }
 

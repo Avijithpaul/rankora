@@ -85,7 +85,7 @@ describe("create_demo_project", () => {
           [result.slug],
         ),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/row-level security|Website limit reached/);
   });
 
   it("rejects oversized payloads and anonymous callers", async () => {

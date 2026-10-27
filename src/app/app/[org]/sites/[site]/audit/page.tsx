@@ -34,7 +34,7 @@ const FILTERS = [
 const ERRORS: Record<string, string> = {
   ...DENIAL_MESSAGE,
   rate_limited: "You have started too many audits in the last hour. Please try again later.",
-  config: "The server is missing SUPABASE_SECRET_KEY, which the crawler needs to store results.",
+  config: "Audits are not fully configured on the server yet. Please contact the administrator.",
 };
 
 export default async function AuditPage({ params, searchParams }: PageProps<"/app/[org]/sites/[site]/audit">) {
@@ -196,7 +196,7 @@ export default async function AuditPage({ params, searchParams }: PageProps<"/ap
                         </div>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
                           <div
-                            className={cn("h-full rounded-full", v.score >= 85 ? "bg-success" : v.score >= 60 ? "bg-[#f79009]" : "bg-critical")}
+                            className={cn("animate-grow-x h-full rounded-full", v.score >= 85 ? "bg-success" : v.score >= 60 ? "bg-[#f79009]" : "bg-critical")}
                             style={{ width: `${Math.max(2, v.score)}%` }}
                           />
                         </div>

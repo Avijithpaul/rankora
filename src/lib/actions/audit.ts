@@ -6,7 +6,7 @@ import { requireWebsite } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { providerConfig } from "@/lib/env";
 import { auditDenial, canChangeIssueStatus } from "@/lib/audit/access";
-import { startAudit } from "@/lib/audit/service";
+import { QuotaExceededError, startAudit } from "@/lib/audit/service";
 import { recordAudit } from "@/lib/audit-log";
 
 export async function startAuditAction(formData: FormData) {
@@ -24,7 +24,14 @@ export async function startAuditAction(formData: FormData) {
   const { data: allowed } = await supabase.rpc("rate_limit_hit", { p_bucket: "audit.start", p_limit: 10, p_window_seconds: 3600 });
   if (!allowed) redirect(`${base}?error=rate_limited`);
 
-  const { jobId, alreadyRunning } = await startAudit({ website, planId: org.plan_id, userId: user.id, trigger: "manual" });
+  let started: Awaited<ReturnType<typeof startAudit>>;
+  try {
+    started = await startAudit({ website, planId: org.plan_id, userId: user.id, trigger: "manual" });
+  } catch (e) {
+    if (e instanceof QuotaExceededError) redirect(`${base}?error=${encodeURIComponent(e.message)}`);
+    throw e;
+  }
+  const { jobId, alreadyRunning } = started;
   if (!alreadyRunning) {
     await recordAudit({ organizationId: org.id, actorId: user.id, action: "audit.started", entityType: "crawl_job", entityId: jobId });
   }

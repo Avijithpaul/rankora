@@ -18,12 +18,13 @@ export function FeaturePage({ slug }: { slug: MarketingFeature["slug"] }) {
   const f = get(slug);
   return (
     <>
-      <section className="border-b border-line bg-canvas">
-        <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
-          <p className="text-sm font-semibold text-brand">{f.name}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink sm:text-5xl">{f.headline}</h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-muted">{f.intro}</p>
-          <div className="mt-8 flex justify-center gap-3">
+      <section className="relative overflow-hidden border-b border-line bg-canvas">
+        <div className="hero-glow pointer-events-none absolute inset-0" aria-hidden />
+        <div className="relative mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
+          <p className="animate-fade-up text-sm font-semibold text-brand">{f.name}</p>
+          <h1 className="animate-fade-up delay-1 mt-3 text-4xl font-bold tracking-tight text-ink sm:text-5xl">{f.headline}</h1>
+          <p className="animate-fade-up delay-2 mx-auto mt-5 max-w-2xl text-lg text-muted">{f.intro}</p>
+          <div className="animate-fade-up delay-3 mt-8 flex justify-center gap-3">
             <ButtonLink href="/register" size="lg">
               Start free
             </ButtonLink>
@@ -35,7 +36,7 @@ export function FeaturePage({ slug }: { slug: MarketingFeature["slug"] }) {
       </section>
       <section className="mx-auto grid max-w-5xl gap-6 px-4 py-16 sm:grid-cols-2 sm:px-6">
         {f.points.map((p) => (
-          <div key={p.title} className="rounded-xl border border-line p-6">
+          <div key={p.title} className="animate-fade-up hover-lift rounded-xl border border-line bg-surface/60 p-6 hover:border-brand/40">
             <CheckCircle2 className="size-5 text-brand" aria-hidden />
             <h2 className="mt-3 font-semibold text-ink">{p.title}</h2>
             <p className="mt-1 text-sm text-muted">{p.body}</p>

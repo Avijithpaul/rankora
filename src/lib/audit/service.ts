@@ -4,6 +4,15 @@
  * (see src/lib/audit/access.ts).
  */
 import "server-only";
+import { getEntitlements, recordUsage } from "@/lib/billing/usage";
+import { checkLimit, limitMessage } from "@/lib/billing/entitlements";
+import { errorMessage, logEvent } from "@/lib/monitoring";
+import { notifyUsers } from "@/lib/notifications";
+
+/** Thrown when a plan's monthly allowance is used up. */
+export class QuotaExceededError extends Error {
+  readonly code = "quota";
+}
 import { randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json, Tables } from "@/lib/supabase/database.types";
@@ -73,8 +82,12 @@ export async function startAudit(opts: {
     db.from("plans").select("limits").eq("id", opts.planId).single(),
   ]);
   const planCap = Number((plan?.limits as Record<string, unknown> | null)?.crawl_pages_per_audit ?? 100);
+  // monthly crawl budget: an audit may use at most what is left this month
+  const ent = await getEntitlements(website.organization_id);
+  const monthLeft = Math.max(0, ent.limits.crawl_pages_per_month - ent.usage.crawl_pages_per_month);
+  if (monthLeft <= 0) throw new QuotaExceededError(limitMessage("crawl_pages_per_month", checkLimit(ent.limits.crawl_pages_per_month, ent.usage.crawl_pages_per_month), ent.planName));
   const snapshot = {
-    maxPages: Math.min(settings?.max_pages ?? 100, planCap),
+    maxPages: Math.max(1, Math.min(settings?.max_pages ?? 100, planCap, monthLeft)),
     maxDepth: settings?.max_depth ?? 5,
     crawlDelayMs: settings?.crawl_delay_ms ?? 250,
     respectRobotsTxt: settings?.respect_robots_txt ?? true,
@@ -219,8 +232,9 @@ export async function processJob(jobId: string, budgetMs = 20_000): Promise<JobS
     return toStatus(updated ?? job);
   } catch (e) {
     const attempt = job.attempt + 1;
-    const message = (e as Error).message.slice(0, 500);
-    console.error(`[crawl ${jobId}] tick failed (attempt ${attempt})`, e);
+    // users see a generic message; the details stay in the server-side event log
+    const message = attempt >= MAX_JOB_ERRORS ? "The audit failed after several attempts. Please try again later." : "A temporary error occurred; the audit will retry.";
+    await logEvent("error", "crawl.tick", `Crawl tick failed (attempt ${attempt})`, { jobId, websiteId: job.website_id, error: errorMessage(e) });
     const { data: updated } = await db
       .from("crawl_jobs")
       .update({
@@ -289,13 +303,15 @@ export async function finalizeAudit(job: Job, website: Tables<"websites">, state
     .from("websites")
     .update({ latest_score: summary.score, last_crawled_at: new Date().toISOString() })
     .eq("id", website.id);
-  await db.from("usage_records").insert({
-    organization_id: job.organization_id,
-    website_id: website.id,
-    metric: "crawl_pages",
-    quantity: Math.max(1, rows.length),
-    metadata: { crawl_job_id: job.id },
-  });
+  await recordUsage({ orgId: job.organization_id, websiteId: website.id, metric: "crawl_pages", quantity: Math.max(1, rows.length), metadata: { crawl_job_id: job.id } });
+  if (job.requested_by) {
+    await notifyUsers(job.organization_id, [job.requested_by], {
+      type: "audit.completed",
+      title: `Site audit finished for ${website.domain}`,
+      body: `SEO score ${Math.round(summary.score)}/100 · ${pagesAnalyzed} pages analyzed.`,
+      link: `sites/${website.id}/audit`,
+    });
+  }
   return auditId;
 }
 

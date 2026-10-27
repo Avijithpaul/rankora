@@ -28,7 +28,7 @@ export const SITE_MODULES: SiteModule[] = [
   { slug: "pages", label: "Pages", group: "Optimize", icon: "FileText", status: "live", summary: "Page Explorer: every crawled URL with audit issues, Search Console and GA4 metrics, target keywords, links and recommendations." },
   { slug: "content", label: "Content Optimizer", group: "Optimize", icon: "PenLine", status: "live", summary: "Analyze a URL or draft against a target keyword: headings, placement, length, readability, metadata, related terms and optional AI suggestions." },
   { slug: "tasks", label: "SEO Tasks", group: "Manage", icon: "ListChecks", status: "live", summary: "Turn audit issues into assignable tasks with priority, status and due dates." },
-  { slug: "reports", label: "Reports", group: "Manage", icon: "FileBarChart", status: "planned", phase: "Phase 7", summary: "Overview, audit, traffic, ranking and monthly reports with comparison periods and print view." },
+  { slug: "reports", label: "Reports", group: "Manage", icon: "FileBarChart", status: "live", summary: "Overview, audit, traffic, ranking and monthly reports with comparison periods and print view." },
   { slug: "integrations", label: "Integrations", group: "Manage", icon: "Plug", status: "live", summary: "Connect Google Search Console, GA4, PageSpeed Insights and SEO data providers." },
   { slug: "settings", label: "Site Settings", group: "Manage", icon: "Settings2", status: "live", summary: "Website details, crawl configuration and deletion." },
 ];

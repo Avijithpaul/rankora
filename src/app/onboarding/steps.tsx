@@ -12,7 +12,7 @@ export function OnboardingSteps({ current }: { current: 0 | 1 | 2 }) {
             className={cn(
               "grid size-6 place-items-center rounded-full text-xs font-semibold",
               i < current && "bg-success text-white",
-              i === current && "bg-brand text-white",
+              i === current && "bg-brand text-on-brand",
               i > current && "bg-surface-2 text-muted ring-1 ring-line-strong",
             )}
             aria-current={i === current ? "step" : undefined}

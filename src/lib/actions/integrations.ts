@@ -11,6 +11,7 @@ import { listProperties } from "@/lib/google/analytics";
 import { GoogleApiError, GOOGLE_ERROR_HELP } from "@/lib/google/errors";
 import { startSync } from "@/lib/google/sync";
 import { recordAudit } from "@/lib/audit-log";
+import { gscPropertyMatchesDomain } from "@/lib/google/property-match";
 
 async function ctxFrom(formData: FormData) {
   const orgSlug = String(formData.get("orgSlug") ?? "");
@@ -42,6 +43,12 @@ export async function selectPropertyAction(formData: FormData) {
   const integration = await loadIntegration(ctx.website.id, String(formData.get("integrationId") ?? ""));
   const value = String(formData.get("property") ?? "");
   if (!integration?.oauth_connection_id || !value) redirect(`${ctx.back}?google=invalid`);
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("rate_limit_hit", { p_bucket: "google.property", p_limit: 20, p_window_seconds: 3600 });
+  if (!allowed) redirect(`${ctx.back}?google=rate_limited`);
+  // The Google account may see many properties; only its owner (or an admin) decides which one a website uses.
+  const { data: conn } = await supabase.from("oauth_connections").select("connected_by").eq("id", integration.oauth_connection_id).maybeSingle();
+  if (conn?.connected_by !== ctx.user.id && !roleAtLeast(ctx.role, "admin")) redirect(`${ctx.back}?google=property_forbidden`);
 
   let name: string | null = null;
   try {
@@ -49,6 +56,7 @@ export async function selectPropertyAction(formData: FormData) {
     if (integration.provider === "google_search_console") {
       const site = (await listSites(token)).find((s) => s.siteUrl === value);
       if (!site) redirect(`${ctx.back}?google=property_not_found`);
+      if (!gscPropertyMatchesDomain(site.siteUrl, ctx.website.domain)) redirect(`${ctx.back}?google=property_mismatch`);
       name = site.siteUrl.replace(/^sc-domain:/, "Domain: ");
     } else {
       const prop = (await listProperties(token)).find((p) => p.property === value);
@@ -83,6 +91,9 @@ export async function syncNowAction(formData: FormData) {
   const ctx = await ctxFrom(formData);
   const integration = await loadIntegration(ctx.website.id, String(formData.get("integrationId") ?? ""));
   if (!integration?.external_account_id) redirect(`${ctx.back}?google=invalid`);
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("rate_limit_hit", { p_bucket: "google.sync_now", p_limit: 20, p_window_seconds: 3600 });
+  if (!allowed) redirect(`${ctx.back}?google=rate_limited`);
   await startSync(integration.id, formData.get("full") === "1" ? "initial" : "incremental");
   redirect(`${ctx.back}?sync=${integration.id}`);
 }
