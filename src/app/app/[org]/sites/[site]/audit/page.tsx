@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight, History, Play, RotateCw, ScanSearch } from "lucide-react";
-import { requireWebsite } from "@/lib/auth/dal";
+import { requireWebsite, roleAtLeast } from "@/lib/auth/dal";
+import { createTasksFromIssuesAction } from "@/lib/actions/tasks";
 import { createClient } from "@/lib/supabase/server";
 import { startAuditAction } from "@/lib/actions/audit";
 import { auditDenial, DENIAL_MESSAGE } from "@/lib/audit/access";
@@ -72,6 +73,13 @@ export default async function AuditPage({ params, searchParams }: PageProps<"/ap
     : [{ data: [] }, { data: [] }];
 
   const issueByRule = new Map((issues ?? []).map((i) => [i.rule_id, i]));
+  const openIssueIds = (issues ?? []).filter((i) => i.status === "open").map((i) => i.id);
+  const { data: openTasks } = openIssueIds.length
+    ? await supabase.from("seo_tasks").select("issue_id").eq("website_id", website.id).in("status", ["todo", "in_progress"]).not("issue_id", "is", null)
+    : { data: [] as { issue_id: string | null }[] };
+  const tasked = new Set((openTasks ?? []).map((t) => t.issue_id));
+  const untasked = openIssueIds.filter((id) => !tasked.has(id));
+  const canTask = roleAtLeast(role, "member") && !website.is_demo;
   const sevOrder = { critical: 0, warning: 1, opportunity: 2, passed: 3 } as const;
   const all = (checks ?? []).sort(
     (a, b) =>
@@ -116,7 +124,7 @@ export default async function AuditPage({ params, searchParams }: PageProps<"/ap
       />
 
       <div className="space-y-4">
-        {errorCode && ERRORS[errorCode] && <FormMessage>{ERRORS[errorCode]}</FormMessage>}
+        {errorCode && <FormMessage>{ERRORS[errorCode] ?? errorCode.slice(0, 200)}</FormMessage>}
         {denial && denial !== "role" && <FormMessage tone="info">{DENIAL_MESSAGE[denial]}</FormMessage>}
         {lastFailed && !activeJob && <FormMessage>The last audit failed: {lastJob?.error ?? "unknown error"}. You can run it again.</FormMessage>}
         {activeJob &&
@@ -197,6 +205,31 @@ export default async function AuditPage({ params, searchParams }: PageProps<"/ap
                 </CardBody>
               </Card>
             </div>
+
+            {isLatest && (openIssueIds.length > 0 || typeof sp.saved === "string") && (
+              <Card className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                <span className="text-ink-2">
+                  {openIssueIds.length} open issue{openIssueIds.length === 1 ? "" : "s"} · {openIssueIds.length - untasked.length} already in{" "}
+                  <Link href={`${base}/tasks`} className="text-brand hover:underline">
+                    SEO Tasks
+                  </Link>
+                </span>
+                {typeof sp.saved === "string" && <span className="text-success">{sp.saved.slice(0, 160)}</span>}
+                {canTask && untasked.length > 0 && (
+                  <form action={createTasksFromIssuesAction} className="ml-auto">
+                    <input type="hidden" name="orgSlug" value={orgSlug} />
+                    <input type="hidden" name="siteId" value={siteId} />
+                    <input type="hidden" name="back" value={`${base}/audit`} />
+                    {untasked.map((id) => (
+                      <input key={id} type="hidden" name="issueId" value={id} />
+                    ))}
+                    <Button type="submit" size="sm" variant="secondary">
+                      Create {untasked.length} task{untasked.length === 1 ? "" : "s"} from open issues
+                    </Button>
+                  </form>
+                )}
+              </Card>
+            )}
 
             <Card>
               <div className="flex flex-wrap gap-1 border-b border-line p-2" role="tablist" aria-label="Filter checks by severity">

@@ -39,7 +39,16 @@ export function providerConfig() {
       process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD
         ? { login: process.env.DATAFORSEO_LOGIN, password: process.env.DATAFORSEO_PASSWORD }
         : null,
+    aiProvider: aiConfig() ? "anthropic" : null,
+    backlinkProvider: process.env.BACKLINK_PROVIDER === "dataforseo" ? ("dataforseo" as const) : null,
     tokenEncryptionConfigured: Boolean(process.env.TOKEN_ENCRYPTION_KEY),
     serviceRoleConfigured: Boolean(process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY),
   };
+}
+
+/** Optional AI suggestions (Content Optimizer). Without a key the feature is shown as not connected. */
+export function aiConfig(): { apiKey: string; model: string } | null {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  return { apiKey, model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5" };
 }

@@ -21,9 +21,9 @@ a foundation for a commercial product.
 | 2 | Site Audit: SSRF-safe crawler, robots.txt, sitemaps, 33-rule analyzer, weighted score, issues, pages, Technical SEO | ✅ Done |
 | 3 | Keywords: provider abstraction (DataForSEO), keyword research, saved keywords, groups, rank tracker, history, CSV | ✅ Done |
 | 4 | Google Search Console & GA4: secure OAuth, property selection, sync, Analytics + Search Performance sections | ✅ Done |
-| 5 | Content Optimizer & SEO Tasks | Planned |
-| 6 | Competitors, Backlinks, Reports | Planned |
-| 7 | Billing (Stripe), invitations, admin console, hardening | Planned |
+| 5 | Page Explorer, Content Optimizer (URL or draft), optional labelled AI suggestions, analysis history | ✅ Done |
+| 6 | Competitors (rankings, overlap/gaps, homepage & page comparison), backlink provider abstraction, SEO Tasks | ✅ Done |
+| 7 | Reports, billing (Stripe), invitations, admin console, hardening | Planned |
 
 Unbuilt modules are visible in the app with an explicit **“Planned · Phase N”** page — never placeholder numbers.
 Details: [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -45,6 +45,19 @@ Details: [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/ROADMAP.md](docs/ROADMAP.
 - **Google integrations** — connect Search Console and GA4 with read-only OAuth, choose properties, automatic sync;
   Search Performance (overview, queries, pages, countries, devices) and Analytics (overview, traffic, pages,
   acquisition, countries, devices) with date ranges and comparison periods.
+- **Page Explorer** — every crawled URL with Search Console clicks/impressions/position, GA4 views, open issues and mapped
+  keywords; sortable; page details with 28-day comparisons and rule-based recommendations.
+- **Content Optimizer** — analyze a page URL or a pasted draft for a target keyword: 21 explained checks (metadata, headings,
+  placement, structure, length, links, related-term coverage from real sources, readability), weighted score, history,
+  internal-link opportunities. Optional **AI suggestions** (titles, meta descriptions, outline, FAQs, improvements,
+  internal links) via Claude, always labelled as suggestions and never published.
+- **Competitors** — up to 10 competitor domains per website: positions from the same SERP as your daily rank check,
+  keyword overlap and gaps from the provider's ranking index, like-for-like homepage SEO snapshot, page-vs-page content
+  comparison.
+- **Backlinks** — provider abstraction (DataForSEO Backlinks): backlinks, referring domains, anchor text, new and lost
+  links; shows “Provider Not Connected” until enabled — never estimated.
+- **SEO Tasks** — turn audit issues into tasks (one click or in bulk) with page, priority, status (To Do / In Progress /
+  Completed / Ignored), assignee, due date, source issue and notes; board, filters and dashboard progress.
 - **Social sign-in** — Google and GitHub sign-in/sign-up via Supabase (enable the providers in Supabase).
 - **Demo Project** — a separate, read-only workspace with sample data labelled **Demo Data** for presentations.
 
@@ -107,6 +120,8 @@ Open http://localhost:3000, register, and follow onboarding. Choose **Open Demo 
 | `CRON_SECRET` | for background jobs | protects `/api/cron/crawl` and `/api/cron/ranks` |
 | `PAGESPEED_API_KEY` | optional | Core Web Vitals in audits |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | optional | live keyword data and rank tracking |
+| `BACKLINK_PROVIDER` | optional | `dataforseo` enables the Backlinks module (needs the DataForSEO Backlinks subscription) |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | optional | AI suggestions in the Content Optimizer (default model `claude-opus-5-5`) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Search Console + GA4 OAuth (redirect URI `<site>/api/integrations/google/callback`) |
 
 Server-only values must never be prefixed with `NEXT_PUBLIC_`. `.env.local` is git-ignored.
@@ -133,6 +148,8 @@ insert into public.platform_admins (user_id, role) values ('<your auth user id>'
 | `npm run db:types` | regenerate `src/lib/supabase/database.types.ts` from migrations |
 | `npm run audit:live-check -- <url> <pages>` | real audit end-to-end with a temporary org, then cleanup |
 | `npm run google:live-check` | Google OAuth/sync pipeline on the live DB with simulated Google APIs, then cleanup |
+| `npm run phase6:live-check` | competitors, backlinks (test-double provider) and tasks on the live DB, then cleanup |
+| `npm run content:live-check` | Page Explorer + Content Optimizer pipeline on the live DB against a real site, then cleanup |
 | `npm run keywords:live-check` | keyword + rank pipeline on the live DB with a labelled fake provider, then cleanup |
 
 Only run `audit:live-check` against sites you own or that allow crawling.
@@ -149,6 +166,11 @@ src/
     crawler/              crawl engine, parser, robots.txt, sitemaps, URL rules, stores, safe fetcher
     audit/                analyzer (33 rules), audit service, access control, PageSpeed
     seo/                  rule catalog + weighted scoring engine
+    competitors/          comparison logic, snapshots, ranked-keyword overlap
+    backlinks/            backlink sync service
+    tasks/                task validation and helpers
+    content/              Content Optimizer analyzer, term sources, page recommendations
+    ai/                   optional AI suggestion providers (Claude adapter)
     providers/            KeywordProvider / RankProvider, DataForSEO adapter, demo provider, registry
     keywords/             keyword service, CSV import/export, utilities
     security/             SSRF protection, safe fetch, AES-GCM token encryption
@@ -166,8 +188,8 @@ docs/                     architecture, database, scoring, integrations, securit
 npm run check
 ```
 
-246 automated tests cover the scoring engine, crawler (including SSRF protection against a real local server),
-HTML parser, robots/sitemap parsing, analyzer rules, provider adapters, CSV handling, validation, encryption, and
+309 automated tests cover the scoring engine, crawler (including SSRF protection against a real local server),
+HTML parser, robots/sitemap parsing, content analyzer, AI prompt/output handling, analyzer rules, provider adapters, CSV handling, validation, encryption, and
 database security (RLS, column privileges, triggers, tenant isolation). Live-database scripts verify the same
 guarantees against Supabase.
 

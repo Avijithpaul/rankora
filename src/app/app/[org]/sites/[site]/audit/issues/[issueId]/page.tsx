@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
-import { requireWebsite } from "@/lib/auth/dal";
+import { requireWebsite, roleAtLeast } from "@/lib/auth/dal";
+import { createTasksFromIssuesAction } from "@/lib/actions/tasks";
 import { createClient } from "@/lib/supabase/server";
 import { setIssueStatusAction } from "@/lib/actions/audit";
 import { canChangeIssueStatus } from "@/lib/audit/access";
@@ -10,7 +11,7 @@ import { RULES_BY_ID } from "@/lib/seo/rules";
 import { CATEGORY_LABEL } from "@/lib/audit/labels";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { Badge, DemoDataBadge, SeverityBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { FormMessage } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
@@ -49,6 +50,8 @@ export default async function IssuePage({ params, searchParams }: PageProps<"/ap
       : { data: [] as { id: string; normalized_url: string; status_code: number | null; title: string | null }[] };
   const pageByUrl = new Map((crawled ?? []).map((c) => [c.normalized_url, c]));
   const rule = RULES_BY_ID.get(issue.rule_id);
+  const { data: openTask } = await supabase.from("seo_tasks").select("id, status").eq("issue_id", issue.id).in("status", ["todo", "in_progress"]).maybeSingle();
+  const canTask = roleAtLeast(role, "member") && !website.is_demo && issue.status !== "fixed";
   const nextStatus = issue.status === "open" ? "ignored" : issue.status === "ignored" ? "open" : null;
   const canChange = nextStatus !== null && canChangeIssueStatus(role, issue.status, nextStatus) && !website.is_demo;
 
@@ -70,20 +73,50 @@ export default async function IssuePage({ params, searchParams }: PageProps<"/ap
         }
         description={`${rule ? CATEGORY_LABEL[rule.category] : "Rule"} · rule ${issue.rule_id}`}
         actions={
-          canChange && (
-            <form action={setIssueStatusAction}>
-              <input type="hidden" name="orgSlug" value={orgSlug} />
-              <input type="hidden" name="siteId" value={siteId} />
-              <input type="hidden" name="issueId" value={issue.id} />
-              <input type="hidden" name="status" value={nextStatus!} />
-              <Button type="submit" variant="secondary">
-                {nextStatus === "ignored" ? "Ignore issue" : "Reopen issue"}
-              </Button>
-            </form>
-          )
+          <div className="flex gap-2">
+            {openTask ? (
+              <ButtonLink href={`${base}/tasks/${openTask.id}`} variant="secondary">
+                View task
+              </ButtonLink>
+            ) : (
+              canTask && (
+                <form action={createTasksFromIssuesAction}>
+                  <input type="hidden" name="orgSlug" value={orgSlug} />
+                  <input type="hidden" name="siteId" value={siteId} />
+                  <input type="hidden" name="issueId" value={issue.id} />
+                  <input type="hidden" name="back" value={`${base}/audit/issues/${issue.id}`} />
+                  <Button type="submit">Create task</Button>
+                </form>
+              )
+            )}
+            {canChange && (
+              <form action={setIssueStatusAction}>
+                <input type="hidden" name="orgSlug" value={orgSlug} />
+                <input type="hidden" name="siteId" value={siteId} />
+                <input type="hidden" name="issueId" value={issue.id} />
+                <input type="hidden" name="status" value={nextStatus!} />
+                <Button type="submit" variant="secondary">
+                  {nextStatus === "ignored" ? "Ignore issue" : "Reopen issue"}
+                </Button>
+              </form>
+            )}
+          </div>
         }
       />
-      {sp.error && <div className="mb-4"><FormMessage>That status change is not allowed.</FormMessage></div>}
+      {sp.error === "status" ? (
+        <div className="mb-4">
+          <FormMessage>That status change is not allowed.</FormMessage>
+        </div>
+      ) : typeof sp.error === "string" ? (
+        <div className="mb-4">
+          <FormMessage>{sp.error.slice(0, 200)}</FormMessage>
+        </div>
+      ) : null}
+      {typeof sp.saved === "string" && (
+        <div className="mb-4">
+          <FormMessage tone="success">{sp.saved.slice(0, 200)}</FormMessage>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

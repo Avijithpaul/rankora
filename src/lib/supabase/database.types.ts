@@ -142,6 +142,47 @@ export type Database = {
           { foreignKeyName: "audit_logs_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
         ];
       };
+      backlink_syncs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          website_id: string;
+          provider: string;
+          status: string;
+          summary: Json;
+          rows_stored: number;
+          error: string | null;
+          created_by: string | null;
+          synced_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          website_id: string;
+          provider: string;
+          status: string;
+          summary?: Json;
+          rows_stored?: number;
+          error?: string | null;
+          created_by?: string | null;
+          synced_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          website_id?: string;
+          provider?: string;
+          status?: string;
+          summary?: Json;
+          rows_stored?: number;
+          error?: string | null;
+          created_by?: string | null;
+          synced_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "backlink_syncs_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
+        ];
+      };
       backlinks: {
         Row: {
           id: string;
@@ -158,6 +199,9 @@ export type Database = {
           last_seen_at: string | null;
           lost_at: string | null;
           synced_at: string;
+          is_new: boolean;
+          is_lost: boolean;
+          link_type: string | null;
         };
         Insert: {
           id?: string;
@@ -174,6 +218,9 @@ export type Database = {
           last_seen_at?: string | null;
           lost_at?: string | null;
           synced_at?: string;
+          is_new?: boolean;
+          is_lost?: boolean;
+          link_type?: string | null;
         };
         Update: {
           id?: string;
@@ -190,9 +237,90 @@ export type Database = {
           last_seen_at?: string | null;
           lost_at?: string | null;
           synced_at?: string;
+          is_new?: boolean;
+          is_lost?: boolean;
+          link_type?: string | null;
         };
         Relationships: [
           { foreignKeyName: "backlinks_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
+        ];
+      };
+      competitor_rankings: {
+        Row: {
+          organization_id: string;
+          competitor_id: string;
+          keyword_id: string;
+          checked_on: string;
+          position: number | null;
+          url: string | null;
+          source: string;
+        };
+        Insert: {
+          organization_id: string;
+          competitor_id: string;
+          keyword_id: string;
+          checked_on: string;
+          position?: number | null;
+          url?: string | null;
+          source: string;
+        };
+        Update: {
+          organization_id?: string;
+          competitor_id?: string;
+          keyword_id?: string;
+          checked_on?: string;
+          position?: number | null;
+          url?: string | null;
+          source?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "competitor_rankings_competitor_id_organization_id_fkey"; columns: ["competitor_id", "organization_id"]; isOneToOne: false; referencedRelation: "competitors"; referencedColumns: ["id", "organization_id"] },
+          { foreignKeyName: "competitor_rankings_keyword_id_organization_id_fkey"; columns: ["keyword_id", "organization_id"]; isOneToOne: false; referencedRelation: "keywords"; referencedColumns: ["id", "organization_id"] },
+        ];
+      };
+      competitor_snapshots: {
+        Row: {
+          id: string;
+          organization_id: string;
+          website_id: string;
+          competitor_id: string;
+          kind: string;
+          keyword: string | null;
+          url: string | null;
+          own_url: string | null;
+          data: Json;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          website_id: string;
+          competitor_id: string;
+          kind: string;
+          keyword?: string | null;
+          url?: string | null;
+          own_url?: string | null;
+          data?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          website_id?: string;
+          competitor_id?: string;
+          kind?: string;
+          keyword?: string | null;
+          url?: string | null;
+          own_url?: string | null;
+          data?: Json;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "competitor_snapshots_competitor_id_organization_id_fkey"; columns: ["competitor_id", "organization_id"]; isOneToOne: false; referencedRelation: "competitors"; referencedColumns: ["id", "organization_id"] },
+          { foreignKeyName: "competitor_snapshots_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
         ];
       };
       competitors: {
@@ -245,6 +373,9 @@ export type Database = {
           ai_model: string | null;
           created_by: string | null;
           created_at: string;
+          scoring_version: string | null;
+          word_count: number | null;
+          ai_generated_at: string | null;
         };
         Insert: {
           id?: string;
@@ -260,6 +391,9 @@ export type Database = {
           ai_model?: string | null;
           created_by?: string | null;
           created_at?: string;
+          scoring_version?: string | null;
+          word_count?: number | null;
+          ai_generated_at?: string | null;
         };
         Update: {
           id?: string;
@@ -275,6 +409,9 @@ export type Database = {
           ai_model?: string | null;
           created_by?: string | null;
           created_at?: string;
+          scoring_version?: string | null;
+          word_count?: number | null;
+          ai_generated_at?: string | null;
         };
         Relationships: [
           { foreignKeyName: "content_analyses_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
@@ -532,6 +669,54 @@ export type Database = {
         };
         Relationships: [
           { foreignKeyName: "crawl_pages_crawl_job_id_organization_id_fkey"; columns: ["crawl_job_id", "organization_id"]; isOneToOne: false; referencedRelation: "crawl_jobs"; referencedColumns: ["id", "organization_id"] },
+        ];
+      };
+      domain_keyword_snapshots: {
+        Row: {
+          id: string;
+          organization_id: string;
+          website_id: string;
+          competitor_id: string | null;
+          domain: string;
+          country_code: string;
+          language_code: string;
+          provider: string;
+          item_count: number;
+          items: Json;
+          fetched_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          website_id: string;
+          competitor_id?: string | null;
+          domain: string;
+          country_code: string;
+          language_code: string;
+          provider: string;
+          item_count?: number;
+          items?: Json;
+          fetched_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          website_id?: string;
+          competitor_id?: string | null;
+          domain?: string;
+          country_code?: string;
+          language_code?: string;
+          provider?: string;
+          item_count?: number;
+          items?: Json;
+          fetched_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "domain_keyword_snapshots_competitor_id_organization_id_fkey"; columns: ["competitor_id", "organization_id"]; isOneToOne: false; referencedRelation: "competitors"; referencedColumns: ["id", "organization_id"] },
+          { foreignKeyName: "domain_keyword_snapshots_website_id_organization_id_fkey"; columns: ["website_id", "organization_id"]; isOneToOne: false; referencedRelation: "websites"; referencedColumns: ["id", "organization_id"] },
         ];
       };
       integrations: {
@@ -1760,13 +1945,18 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
+      backlink_anchors: { Args: { p_site: string; p_limit?: number }; Returns: { anchor: string | null; backlinks: number | null; domains: number | null }[] };
+      backlink_referring_domains: { Args: { p_site: string; p_limit?: number }; Returns: { domain: string | null; backlinks: number | null; follow: number | null; live: number | null; first_seen: string | null; authority: number | null }[] };
       crawl_compute_inbound: { Args: { p_job: string }; Returns: string };
       create_demo_project: { Args: { p_data: Json }; Returns: Json };
       create_organization: { Args: { p_name: string; p_slug: string }; Returns: string };
       ga_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; users: number | null; new_users: number | null; sessions: number | null; engaged_sessions: number | null; page_views: number | null; source: string | null }[] };
       gsc_breakdown: { Args: { p_site: string; p_dim: string; p_from: string; p_to: string; p_limit?: number }; Returns: { key: string | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null; source: string | null }[] };
+      page_explorer: { Args: { p_site: string; p_job: string; p_from: string; p_to: string; p_search?: string; p_status?: string; p_indexable?: string; p_sort?: string; p_limit?: number; p_offset?: number }; Returns: { page_id: string | null; url: string | null; title: string | null; fetch_state: string | null; status_code: number | null; is_indexable: boolean | null; indexability_reason: string | null; word_count: number | null; inbound_links: number | null; response_time_ms: number | null; depth: number | null; clicks: number | null; impressions: number | null; ctr: number | null; avg_position: number | null; gsc_source: string | null; users: number | null; sessions: number | null; page_views: number | null; ga_source: string | null; open_issues: number | null; keywords: number | null; total_count: number | null }[] };
       rank_distribution: { Args: { p_site: string; p_from: string }; Returns: { date: string | null; top3: number | null; top10: number | null; top20: number | null; top100: number | null; not_ranking: number | null; source: string | null }[] };
       rate_limit_hit: { Args: { p_bucket: string; p_limit: number; p_window_seconds: number }; Returns: boolean };
+      task_stats: { Args: { p_org: string; p_site?: string }; Returns: { todo: number | null; in_progress: number | null; completed: number | null; ignored: number | null; overdue: number | null; completed_30d: number | null; due_7d: number | null }[] };
+      url_path: { Args: { p_url: string }; Returns: string };
     };
     Enums: {
       org_role: "owner" | "admin" | "member" | "viewer";

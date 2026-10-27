@@ -1,7 +1,7 @@
 import { providerConfig } from "@/lib/env";
-import { DataForSeo } from "./dataforseo";
+import { DataForSeo, DataForSeoBacklinks } from "./dataforseo";
 import { demoKeywordProvider } from "./demo";
-import type { KeywordProvider, RankProvider } from "./types";
+import type { BacklinkProvider, DomainKeywordProvider, KeywordProvider, RankProvider } from "./types";
 
 export interface ProviderStatus {
   keyword: { connected: boolean; id: string | null; name: string | null };
@@ -22,6 +22,18 @@ export function getKeywordProvider(opts: { isDemoWebsite: boolean }): KeywordPro
 export function getRankProvider(): RankProvider | null {
   const cfg = providerConfig().dataForSeo;
   return cfg ? new DataForSeo(cfg) : null;
+}
+
+/** Ranked keywords per domain (competitor overlap and gaps). */
+export function getDomainKeywordProvider(): DomainKeywordProvider | null {
+  const cfg = providerConfig().dataForSeo;
+  return cfg ? new DataForSeo(cfg) : null;
+}
+
+/** Backlink data needs its own subscription, so it must be enabled explicitly. Never demo or estimated. */
+export function getBacklinkProvider(): BacklinkProvider | null {
+  const { dataForSeo, backlinkProvider } = providerConfig();
+  return backlinkProvider === "dataforseo" && dataForSeo ? new DataForSeoBacklinks(dataForSeo) : null;
 }
 
 export function providerStatus(): ProviderStatus {

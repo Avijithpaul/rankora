@@ -7,12 +7,54 @@ import { createClient } from "@/lib/supabase/server";
 import { THRESHOLDS } from "@/lib/audit/analyze";
 import { statusTone } from "@/lib/audit/labels";
 import { urlStructureProblems } from "@/lib/crawler/url";
+import { addDays, isoDay } from "@/lib/analytics/ranges";
+import { sourceState } from "@/lib/analytics/source";
+import { pageRecommendations, type SearchMetrics } from "@/lib/content/page-recommendations";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
-import { Badge, SeverityBadge } from "@/components/ui/badge";
+import { Delta, SourceLine } from "@/components/analytics/controls";
+import { Badge, type BadgeTone, SeverityBadge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata: Metadata = { title: "Page details" };
+export const maxDuration = 30;
+
+const PRIORITY_TONE: Record<"high" | "medium" | "low", BadgeTone> = { high: "critical", medium: "warning", low: "neutral" };
+
+function Metric({ label, value, delta }: { label: string; value: React.ReactNode; delta?: number | null }) {
+  return (
+    <div>
+      <div className="text-xs text-muted">{label}</div>
+      <div className="tabular text-lg font-semibold text-ink">{value}</div>
+      {delta !== undefined && <Delta value={delta} />}
+    </div>
+  );
+}
+
+type GscRow = { date: string; clicks: number; impressions: number; position: number | null };
+type GaRow = { date: string; users: number; sessions: number; page_views: number };
+
+function sumGsc(rows: GscRow[]): SearchMetrics {
+  const clicks = rows.reduce((n, r) => n + r.clicks, 0);
+  const impressions = rows.reduce((n, r) => n + r.impressions, 0);
+  const weighted = rows.reduce((n, r) => n + Number(r.position ?? 0) * r.impressions, 0);
+  return { clicks, impressions, ctr: impressions ? clicks / impressions : null, position: impressions ? weighted / impressions : null };
+}
+
+const sumGa = (rows: GaRow[]) => ({
+  users: rows.reduce((n, r) => n + r.users, 0),
+  sessions: rows.reduce((n, r) => n + r.sessions, 0),
+  views: rows.reduce((n, r) => n + r.page_views, 0),
+});
+
+const change = (now: number | null | undefined, prev: number | null | undefined) => (now == null || !prev ? null : (now - prev) / prev);
+
+/** Last 28 complete days and the 28 before them. */
+function windows() {
+  const end = addDays(new Date(), -1);
+  return { from: isoDay(addDays(end, -27)), prevFrom: isoDay(addDays(end, -55)), to: isoDay(end) };
+}
 
 function Row({ label, value, ok, hint }: { label: string; value: React.ReactNode; ok?: boolean | null; hint?: string }) {
   return (
@@ -52,6 +94,29 @@ export default async function PageDetail({ params }: PageProps<"/app/[org]/sites
     supabase.from("seo_issue_pages").select("issue_id, seo_issues!inner(id, title, severity, status, website_id)").eq("url", p.normalized_url).eq("seo_issues.website_id", website.id),
   ]);
 
+  const { from, prevFrom, to } = windows();
+  let path = "/";
+  try {
+    path = new URL(p.normalized_url).pathname || "/";
+  } catch {
+    /* keep "/" */
+  }
+  const [gscState, gaState, { data: gscRows }, { data: gaRows }, { data: targeted }, { data: ranking }] = await Promise.all([
+    sourceState(website, "google_search_console"),
+    sourceState(website, "google_analytics_4"),
+    supabase.from("search_console_pages").select("date, clicks, impressions, position").eq("website_id", website.id).eq("page", p.normalized_url).gte("date", prevFrom).lte("date", to),
+    supabase.from("analytics_pages").select("date, users, sessions, page_views").eq("website_id", website.id).eq("page_path", path).eq("is_landing", false).gte("date", prevFrom).lte("date", to),
+    supabase.from("keywords").select("id, keyword, current_position, target_url, current_url").eq("website_id", website.id).eq("target_url", p.normalized_url).limit(50),
+    supabase.from("keywords").select("id, keyword, current_position, target_url, current_url").eq("website_id", website.id).eq("current_url", p.normalized_url).limit(50),
+  ]);
+  const hasGsc = gscState.kind === "ready" || gscState.kind === "demo";
+  const hasGa = gaState.kind === "ready" || gaState.kind === "demo";
+  const gscNow = hasGsc ? sumGsc((gscRows ?? []).filter((r) => r.date >= from)) : null;
+  const gscPrev = hasGsc ? sumGsc((gscRows ?? []).filter((r) => r.date < from)) : null;
+  const gaNow = hasGa ? sumGa((gaRows ?? []).filter((r) => r.date >= from)) : null;
+  const gaPrev = hasGa ? sumGa((gaRows ?? []).filter((r) => r.date < from)) : null;
+  const keywords = [...(targeted ?? []), ...(ranking ?? [])].filter((k, i, all) => all.findIndex((x) => x.id === k.id) === i);
+
   const d = (p.details ?? {}) as Record<string, unknown>;
   const og = (p.open_graph ?? {}) as Record<string, string>;
   const tw = (p.twitter_card ?? {}) as Record<string, string>;
@@ -63,6 +128,24 @@ export default async function PageDetail({ params }: PageProps<"/app/[org]/sites
     .map((r) => r.seo_issues as unknown as { id: string; title: string; severity: "critical" | "warning" | "opportunity"; status: string })
     .filter((i) => i.status === "open");
   const brokenOut = (outLinks ?? []).filter((l) => (l.target_status ?? 0) >= 400 || l.target_error);
+  const recs = pageRecommendations(
+    {
+      isIndexable: p.is_indexable,
+      statusCode: p.status_code,
+      depth: p.depth,
+      title: p.title,
+      metaDescription: p.meta_description,
+      h1Count: p.h1.filter(Boolean).length,
+      wordCount: p.word_count,
+      inboundLinks: p.inbound_links_count,
+      openIssues: issues.length,
+      targetKeywords: keywords.length,
+    },
+    gscNow,
+    gaNow?.views ?? null,
+  );
+  const primaryKeyword = keywords.find((k) => k.target_url === p.normalized_url) ?? keywords[0];
+  const optimizeHref = `${base}/content?url=${encodeURIComponent(p.normalized_url)}${primaryKeyword ? `&keyword=${encodeURIComponent(primaryKeyword.keyword)}` : ""}`;
 
   return (
     <>
@@ -77,7 +160,75 @@ export default async function PageDetail({ params }: PageProps<"/app/[org]/sites
             {p.normalized_url} <ExternalLink className="size-3.5 shrink-0" aria-hidden />
           </a>
         }
+        actions={
+          p.fetch_state === "fetched" && !website.is_demo ? (
+            <ButtonLink href={optimizeHref} variant="secondary" size="sm">
+              Optimize content
+            </ButtonLink>
+          ) : undefined
+        }
       />
+
+      <div className="mb-4 grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader title="Search performance" description="Last 28 days vs previous 28" action={hasGsc ? <SourceLine state={gscState} label="Search Console" /> : undefined} />
+          {gscNow ? (
+            <CardBody className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <Metric label="Clicks" value={formatNumber(gscNow.clicks)} delta={change(gscNow.clicks, gscPrev?.clicks)} />
+              <Metric label="Impressions" value={formatNumber(gscNow.impressions)} delta={change(gscNow.impressions, gscPrev?.impressions)} />
+              <Metric label="CTR" value={gscNow.ctr === null ? "—" : `${(gscNow.ctr * 100).toFixed(1)}%`} />
+              <Metric label="Avg. position" value={gscNow.position === null ? "—" : gscNow.position.toFixed(1)} />
+            </CardBody>
+          ) : (
+            <CardBody className="text-sm text-muted">
+              Search Console is not connected for this website.{" "}
+              <Link href={`${base}/integrations`} className="text-brand hover:underline">
+                Connect it
+              </Link>{" "}
+              to see clicks and impressions for this URL.
+            </CardBody>
+          )}
+        </Card>
+        <Card>
+          <CardHeader title="Traffic" description="Last 28 days vs previous 28" action={hasGa ? <SourceLine state={gaState} label="GA4" /> : undefined} />
+          {gaNow ? (
+            <CardBody className="grid grid-cols-3 gap-3 text-sm">
+              <Metric label="Views" value={formatNumber(gaNow.views)} delta={change(gaNow.views, gaPrev?.views)} />
+              <Metric label="Sessions" value={formatNumber(gaNow.sessions)} delta={change(gaNow.sessions, gaPrev?.sessions)} />
+              <Metric label="Users" value={formatNumber(gaNow.users)} delta={change(gaNow.users, gaPrev?.users)} />
+            </CardBody>
+          ) : (
+            <CardBody className="text-sm text-muted">
+              GA4 is not connected for this website.{" "}
+              <Link href={`${base}/integrations`} className="text-brand hover:underline">
+                Connect it
+              </Link>{" "}
+              to see page views for {path}.
+            </CardBody>
+          )}
+        </Card>
+      </div>
+
+      <Card className="mb-4">
+        <CardHeader title="Recommendations" description="Rule-based, from the crawl plus connected search and traffic data. Each item states the numbers behind it." />
+        {recs.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted">No recommendations for this page.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {recs.map((r) => (
+              <li key={r.id} className="flex items-start gap-3 px-5 py-3 text-sm">
+                <Badge tone={PRIORITY_TONE[r.priority]} className="capitalize">
+                  {r.priority}
+                </Badge>
+                <span>
+                  <span className="font-medium text-ink">{r.title}</span>
+                  <span className="block text-ink-2">{r.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -146,6 +297,31 @@ export default async function PageDetail({ params }: PageProps<"/app/[org]/sites
         </div>
 
         <div className="space-y-4">
+          <Card>
+            <CardHeader title="Target keywords" description="Saved keywords that target or currently rank with this URL" />
+            {keywords.length === 0 ? (
+              <p className="px-5 py-4 text-sm text-muted">
+                None yet. Set a target URL on a{" "}
+                <Link href={`${base}/keywords`} className="text-brand hover:underline">
+                  saved keyword
+                </Link>
+                .
+              </p>
+            ) : (
+              <ul className="divide-y divide-line">
+                {keywords.map((k) => (
+                  <li key={k.id}>
+                    <Link href={`${base}/keywords/${k.id}`} className="flex items-center gap-2 px-5 py-2.5 text-sm hover:bg-surface-2/50">
+                      <span className="min-w-0 flex-1 truncate">{k.keyword}</span>
+                      {k.target_url === p.normalized_url && <Badge tone="brand">target</Badge>}
+                      {k.current_url === p.normalized_url && <Badge tone="success">ranking</Badge>}
+                      <span className="tabular text-xs text-muted">{k.current_position ? `#${k.current_position}` : "—"}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
           <Card>
             <CardHeader title="Open issues on this page" />
             {issues.length === 0 ? (

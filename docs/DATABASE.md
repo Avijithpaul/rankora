@@ -13,6 +13,8 @@ PostgreSQL on Supabase. Migrations live in `supabase/migrations/` and are applie
 | `…0007_keywords_tracking.sql` | keyword current/previous/best position + ranking URL maintained by trigger from `keyword_rankings`; rank-check claim column; volume trend; **column grants** so clients cannot write metrics or positions; demo keywords read-only |
 | `…0008_oauth_profiles.sql` | profile name/avatar from Google & GitHub sign-in metadata |
 | `…0009_google_integrations.sql` | Google connection status/account id (one active per org + account), integration sync state/claims, date indexes, SQL aggregations `gsc_breakdown` / `ga_breakdown` / `rank_distribution` (security invoker), `keywords.previous_checked_on` |
+| `…0010_content_optimizer.sql` | `content_analyses` scoring version / word count / AI timestamp + URL check + site index; `url_path()`; `page_explorer()` joining crawl pages with GSC, GA4, issues and keywords (security invoker) |
+| `…0011_competitors_backlinks_tasks.sql` | `competitor_rankings` (same-SERP positions), `domain_keyword_snapshots`, `competitor_snapshots`, `backlink_syncs`; `backlinks.is_new/is_lost/link_type`; `backlink_referring_domains()`, `backlink_anchors()`, `task_stats()`; one open task per issue + issue-website trigger; column grants on competitors and seo_tasks |
 
 ## Entity relationships
 
@@ -27,7 +29,8 @@ websites 1─* seo_issues 1─* seo_issue_pages ;  seo_issues 1─* seo_tasks
 websites 1─* keywords *─* keyword_groups (keyword_group_members) ; keywords 1─* keyword_rankings
 organizations 1─* oauth_connections 1─* integrations *─1 websites
 websites 1─* analytics_daily / analytics_pages / search_console_{daily,queries,pages}
-websites 1─* competitors / backlinks / content_analyses / reports
+websites 1─* competitors 1─* competitor_rankings / competitor_snapshots ; competitors 0─* domain_keyword_snapshots
+websites 1─* backlinks / backlink_syncs / content_analyses / reports
 ```
 
 ## Conventions

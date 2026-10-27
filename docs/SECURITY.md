@@ -83,6 +83,30 @@
 * Synced metrics are server-written only; clients cannot insert or update them. Aggregation functions are
   SECURITY INVOKER so RLS still scopes every query to the user's organizations.
 
+## Content Optimizer & AI (Phase 5)
+
+* URL mode only fetches pages on the website's own domain (also after redirects) through `safeFetch`, so private, loopback and
+  metadata addresses stay blocked. Pasted drafts are parsed, never executed or rendered as HTML.
+* `content_analyses` is written only by the server after `requireWebsite` (member+, non-demo). Members read and delete their
+  organization's history (RLS); clients cannot insert or update analyses or AI output.
+* AI: the key lives only in `ANTHROPIC_API_KEY` (server). Page content is fenced as untrusted input to resist prompt injection.
+  Output is schema-validated and sanitised (internal-link targets restricted to crawled URLs) and rendered as plain text.
+  Suggestions are labelled and never published.
+* Rate limits: 60 analyses and 30 AI requests per user per hour.
+
+## Competitors, backlinks & tasks (Phase 6)
+
+* Competitor domains are normalised and validated (no IPs, single labels or own domain); every competitor fetch goes through
+  `safeFetch` and respects robots.txt for RankoraBot. Page comparisons only fetch URLs on the respective domain.
+* Competitor rankings, keyword snapshots, snapshots, backlinks and sync history are server-written only (grants + RLS).
+  A competitor's domain cannot be changed by clients (column grant), so stored data can never be re-labelled to another domain.
+* Backlink and competitor-keyword data come only from a configured provider. Without one, the UI shows “Provider Not
+  Connected”. Tests use clearly labelled test doubles, never stored as production data.
+* Tasks: member+ write, viewers read-only; `completed_at`, `created_by` and `website_id` are not client-writable; the
+  assignee must belong to the organization and the source issue to the same website (triggers); one open task per issue.
+* Rate limits per user per hour: 20 competitor keyword refreshes, 30 homepage snapshots, 30 page comparisons, 5 backlink
+  syncs; plus monthly keyword-lookup and backlink-sync quotas.
+
 ## Abuse and cost controls
 
 * `rate_limit_hit()` (DB-backed, per user) for expensive operations: crawls, keyword lookups, PageSpeed calls.

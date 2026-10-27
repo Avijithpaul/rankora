@@ -5,6 +5,9 @@ import { requireWebsite } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
 import { statusTone } from "@/lib/audit/labels";
+import { PRESETS, resolveRange } from "@/lib/analytics/ranges";
+import { sourceState } from "@/lib/analytics/source";
+import { SourceLine } from "@/components/analytics/controls";
 import { Badge, DemoDataBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,9 +15,19 @@ import { Input, Select } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 
-export const metadata: Metadata = { title: "Pages" };
+export const metadata: Metadata = { title: "Page Explorer" };
 
 const PAGE_SIZE = 50;
+const SORTS = [
+  { key: "clicks", label: "Most clicks" },
+  { key: "impressions", label: "Most impressions" },
+  { key: "views", label: "Most views" },
+  { key: "position", label: "Best position" },
+  { key: "issues", label: "Most issues" },
+  { key: "inlinks", label: "Most inlinks" },
+  { key: "words", label: "Fewest words" },
+  { key: "url", label: "Site structure" },
+];
 
 export default async function PagesPage({ params, searchParams }: PageProps<"/app/[org]/sites/[site]/pages">) {
   const { org: orgSlug, site: siteId } = await params;
@@ -56,36 +69,43 @@ export default async function PagesPage({ params, searchParams }: PageProps<"/ap
     );
   }
 
-  let query = supabase
-    .from("crawl_pages")
-    .select("id, normalized_url, fetch_state, status_code, title, word_count, is_indexable, indexability_reason, response_time_ms, inbound_links_count", { count: "exact" })
-    .eq("crawl_job_id", job.id)
-    .neq("fetch_state", "pending");
-  if (q) query = query.ilike("normalized_url", `%${q.replace(/[%_\\]/g, "\\$&")}%`);
-  if (status === "2xx") query = query.gte("status_code", 200).lt("status_code", 300);
-  if (status === "3xx") query = query.gte("status_code", 300).lt("status_code", 400);
-  if (status === "4xx") query = query.gte("status_code", 400).lt("status_code", 500);
-  if (status === "5xx") query = query.gte("status_code", 500);
-  if (status === "failed" || status === "skipped") query = query.eq("fetch_state", status);
-  if (indexable === "yes") query = query.eq("is_indexable", true);
-  if (indexable === "no") query = query.eq("is_indexable", false);
-  const { data: pages, count } = await query.order("depth").order("normalized_url").range((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE - 1);
-
-  // open-issue counts per URL
-  const urls = (pages ?? []).map((p) => p.normalized_url);
-  const { data: openIssues } = await supabase.from("seo_issues").select("id").eq("website_id", website.id).eq("status", "open");
-  const { data: issuePages } =
-    urls.length && openIssues?.length
-      ? await supabase.from("seo_issue_pages").select("url").in("issue_id", openIssues.map((i) => i.id)).in("url", urls)
-      : { data: [] as { url: string }[] };
-  const issueCount = new Map<string, number>();
-  for (const ip of issuePages ?? []) issueCount.set(ip.url, (issueCount.get(ip.url) ?? 0) + 1);
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
-  const qs = (patch: Record<string, string>) => `${base}/pages?${new URLSearchParams({ q, status, indexable, page: String(pageNo), ...patch })}`;
+  const range = resolveRange({ range: typeof sp.range === "string" && PRESETS.some((p) => p.key === sp.range) ? sp.range : "28d" });
+  const sort = typeof sp.sort === "string" && SORTS.some((x) => x.key === sp.sort) ? sp.sort : "clicks";
+  const [{ data: rows }, gsc, ga] = await Promise.all([
+    supabase.rpc("page_explorer", {
+      p_site: website.id,
+      p_job: job.id,
+      p_from: range.from,
+      p_to: range.to,
+      p_search: q || undefined,
+      p_status: status,
+      p_indexable: indexable,
+      p_sort: sort,
+      p_limit: PAGE_SIZE,
+      p_offset: (pageNo - 1) * PAGE_SIZE,
+    }),
+    sourceState(website, "google_search_console"),
+    sourceState(website, "google_analytics_4"),
+  ]);
+  const pages = rows ?? [];
+  const count = Number(pages[0]?.total_count ?? 0);
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const qs = (patch: Record<string, string>) => `${base}/pages?${new URLSearchParams({ q, status, indexable, sort, range: range.key, page: String(pageNo), ...patch })}`;
+  const hasGsc = gsc.kind === "ready" || gsc.kind === "demo";
+  const hasGa = ga.kind === "ready" || ga.kind === "demo";
 
   return (
     <>
-      <PageHeader title="Pages" description={`${formatNumber(count ?? 0)} URLs from the audit on ${formatDate(job.finished_at)}`} />
+      <PageHeader
+        title="Page Explorer"
+        description={`${formatNumber(count)} URLs from the audit on ${formatDate(job.finished_at)}, joined with search and traffic data for ${formatDate(range.from)} – ${formatDate(range.to)}.`}
+      />
+      <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span>Clicks & impressions:</span>
+        {hasGsc ? <SourceLine state={gsc} label="Search Console" /> : <Link className="text-brand hover:underline" href={`${base}/integrations`}>Search Console not connected</Link>}
+        <span className="ml-2">Views:</span>
+        {hasGa ? <SourceLine state={ga} label="GA4" /> : <Link className="text-brand hover:underline" href={`${base}/integrations`}>GA4 not connected</Link>}
+      </p>
       <Card>
         <form className="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-end" role="search">
           <div className="flex-1">
@@ -118,53 +138,86 @@ export default async function PagesPage({ params, searchParams }: PageProps<"/ap
               <option value="no">Not indexable</option>
             </Select>
           </div>
+          <div>
+            <label htmlFor="sort" className="sr-only">
+              Sort
+            </label>
+            <Select id="sort" name="sort" defaultValue={sort}>
+              {SORTS.map((x) => (
+                <option key={x.key} value={x.key}>
+                  {x.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="range" className="sr-only">
+              Date range
+            </label>
+            <Select id="range" name="range" defaultValue={range.key}>
+              {PRESETS.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </div>
           <button className="h-10 rounded-lg border border-line-strong bg-surface px-4 text-sm font-medium text-ink-2 hover:bg-surface-2">Apply</button>
         </form>
         {!pages?.length ? (
           <EmptyState title="No pages match these filters" className="py-10" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[980px] text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr className="border-b border-line">
                   <th className="px-5 py-2 font-medium">URL</th>
                   <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Indexable</th>
+                  <th className="px-3 py-2 text-right font-medium">Clicks</th>
+                  <th className="px-3 py-2 text-right font-medium">Impr.</th>
+                  <th className="px-3 py-2 text-right font-medium">Pos.</th>
+                  <th className="px-3 py-2 text-right font-medium">Views</th>
                   <th className="px-3 py-2 text-right font-medium">Words</th>
                   <th className="px-3 py-2 text-right font-medium">Inlinks</th>
-                  <th className="px-3 py-2 text-right font-medium">Time</th>
+                  <th className="px-3 py-2 text-right font-medium">Keywords</th>
                   <th className="px-5 py-2 text-right font-medium">Issues</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {pages.map((p) => {
+                  const url = p.url ?? "";
                   const path = (() => {
                     try {
-                      const u = new URL(p.normalized_url);
+                      const u = new URL(url);
                       return u.pathname + u.search;
                     } catch {
-                      return p.normalized_url;
+                      return url;
                     }
                   })();
+                  const metric = (v: number | null, enabled: boolean) => (!enabled ? <span className="text-muted">—</span> : formatNumber(v ?? 0));
                   return (
-                    <tr key={p.id} className="hover:bg-surface-2/50">
+                    <tr key={p.page_id} className="hover:bg-surface-2/50">
                       <td className="max-w-[22rem] px-5 py-2.5">
-                        <Link href={`${base}/pages/${p.id}`} className="block truncate font-medium text-ink hover:text-brand" title={p.normalized_url}>
+                        <Link href={`${base}/pages/${p.page_id}`} className="block truncate font-medium text-ink hover:text-brand" title={url}>
                           {path}
                         </Link>
-                        <span className="block truncate text-xs text-muted">{p.title ?? "—"}</span>
+                        <span className="block truncate text-xs text-muted">
+                          {p.title ?? "—"}
+                          {p.is_indexable === false && <> · not indexable ({p.indexability_reason})</>}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5">
-                        <Badge tone={statusTone(p.status_code, p.fetch_state)}>{p.fetch_state === "fetched" ? p.status_code : p.fetch_state}</Badge>
+                        <Badge tone={statusTone(p.status_code, p.fetch_state ?? "")}>{p.fetch_state === "fetched" ? p.status_code : p.fetch_state}</Badge>
                       </td>
-                      <td className="px-3 py-2.5 text-xs">
-                        {p.is_indexable === null ? "—" : p.is_indexable ? <span className="text-success">Yes</span> : <span className="text-muted">No · {p.indexability_reason}</span>}
-                      </td>
+                      <td className="tabular px-3 py-2.5 text-right">{metric(p.clicks, hasGsc)}</td>
+                      <td className="tabular px-3 py-2.5 text-right">{metric(p.impressions, hasGsc)}</td>
+                      <td className="tabular px-3 py-2.5 text-right text-muted">{hasGsc && p.avg_position !== null ? Number(p.avg_position).toFixed(1) : "—"}</td>
+                      <td className="tabular px-3 py-2.5 text-right">{metric(p.page_views, hasGa)}</td>
                       <td className="tabular px-3 py-2.5 text-right">{formatNumber(p.word_count)}</td>
-                      <td className="tabular px-3 py-2.5 text-right">{formatNumber(p.inbound_links_count)}</td>
-                      <td className="tabular px-3 py-2.5 text-right text-muted">{p.response_time_ms !== null ? `${p.response_time_ms} ms` : "—"}</td>
+                      <td className="tabular px-3 py-2.5 text-right">{formatNumber(p.inbound_links)}</td>
+                      <td className="tabular px-3 py-2.5 text-right">{p.keywords ? p.keywords : <span className="text-muted">0</span>}</td>
                       <td className="tabular px-5 py-2.5 text-right">
-                        <span className={cn(issueCount.get(p.normalized_url) ? "font-medium text-warning" : "text-muted")}>{issueCount.get(p.normalized_url) ?? 0}</span>
+                        <span className={cn(p.open_issues ? "font-medium text-warning" : "text-muted")}>{p.open_issues ?? 0}</span>
                       </td>
                     </tr>
                   );

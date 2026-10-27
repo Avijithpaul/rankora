@@ -9,6 +9,7 @@ import type { Json, Tables } from "@/lib/supabase/database.types";
 import { getKeywordProvider, getRankProvider } from "@/lib/providers/registry";
 import { ProviderError, type KeywordIdea, type KeywordMetrics, type KeywordProvider, type Market, type RankProvider } from "@/lib/providers/types";
 import { ideaType, normalizeKeyword } from "./utils";
+import { MAX_COMPETITORS } from "@/lib/competitors/compare";
 
 type Website = Tables<"websites">;
 const CACHE_DAYS = 7;
@@ -22,13 +23,13 @@ function monthStart() {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
 }
 
-async function planLimits(planId: string) {
+export async function planLimits(planId: string) {
   const db = createAdminClient();
   const { data } = await db.from("plans").select("limits").eq("id", planId).single();
   return (data?.limits ?? {}) as Record<string, number>;
 }
 
-export async function usageThisMonth(orgId: string, metric: "keyword_lookups" | "rank_checks") {
+export async function usageThisMonth(orgId: string, metric: "keyword_lookups" | "rank_checks" | "backlink_lookups") {
   const db = createAdminClient();
   const { data } = await db.from("usage_records").select("quantity").eq("organization_id", orgId).eq("metric", metric).gte("occurred_at", monthStart());
   return (data ?? []).reduce((a, r) => a + r.quantity, 0);
@@ -222,6 +223,9 @@ export async function runRankBatch(
   let checked = 0;
   let failed = 0;
   const errors: string[] = [];
+  // Competitor positions are read from the same SERP as ours — no extra provider call.
+  const { data: competitors } = await db.from("competitors").select("id, domain").eq("website_id", website.id).limit(MAX_COMPETITORS);
+  const competitorIds = new Map((competitors ?? []).map((c) => [c.domain, c.id]));
 
   while (checked + failed < max && Date.now() - started < budget * 0.7) {
     const staleClaim = new Date(Date.now() - CLAIM_TTL_MS).toISOString();
@@ -256,7 +260,13 @@ export async function runRankBatch(
             device: k.device as "desktop" | "mobile",
             engine: k.search_engine as "google" | "bing",
             domain: website.domain,
+            competitors: [...competitorIds.keys()],
           });
+          const compRows = (r.competitors ?? []).flatMap((c) => {
+            const id = competitorIds.get(c.domain);
+            return id ? [{ organization_id: website.organization_id, competitor_id: id, keyword_id: k.id, checked_on: today, position: c.position, url: c.url, source: provider.id }] : [];
+          });
+          if (compRows.length) await db.from("competitor_rankings").upsert(compRows, { onConflict: "competitor_id,keyword_id,checked_on" });
           await db.from("keyword_rankings").upsert(
             {
               organization_id: website.organization_id,

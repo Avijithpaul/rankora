@@ -54,7 +54,7 @@ try {
        where n.nspname = 'public' and c.relkind = 'r' order by 1`,
     )
   ).rows;
-  check("public tables created", tables.length === 37, `${tables.length} tables`);
+  check("public tables created", tables.length === 41, `${tables.length} tables`);
   const noRls = tables.filter((t) => !t.relrowsecurity).map((t) => t.relname);
   check("RLS enabled on every public table", noRls.length === 0, noRls.join(", "));
   const policies = (await client.query<{ n: number }>(`select count(*)::int n from pg_policies where schemaname = 'public'`)).rows[0].n;

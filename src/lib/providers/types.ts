@@ -49,6 +49,8 @@ export interface RankQuery extends Market {
   domain: string;
   /** results depth to inspect (max 100) */
   depth?: number;
+  /** competitor domains to locate in the same SERP (no extra provider call) */
+  competitors?: string[];
 }
 
 export interface RankResult {
@@ -57,6 +59,8 @@ export interface RankResult {
   url: string | null;
   serpFeatures: string[];
   checkedDepth: number;
+  /** positions of the requested competitor domains in the same SERP */
+  competitors?: { domain: string; position: number | null; url: string | null }[];
 }
 
 export interface RankProvider {
@@ -64,6 +68,56 @@ export interface RankProvider {
   readonly name: string;
   supports(engine: SearchEngine): boolean;
   check(q: RankQuery): Promise<RankResult>;
+}
+
+/** One keyword a domain ranks for, as reported by the provider's ranking index. */
+export interface RankedKeyword {
+  keyword: string;
+  position: number;
+  url: string | null;
+  searchVolume: number | null;
+  cpc: number | null;
+}
+
+export interface DomainKeywordProvider {
+  readonly id: string;
+  readonly name: string;
+  /** Organic keywords a domain ranks for in a market, best positions first. */
+  rankedKeywords(domain: string, market: Market, opts?: { limit?: number }): Promise<{ total: number | null; items: RankedKeyword[] }>;
+}
+
+export interface BacklinkSummary {
+  backlinks: number | null;
+  referringDomains: number | null;
+  referringMainDomains: number | null;
+  referringIps: number | null;
+  brokenBacklinks: number | null;
+  rank: number | null;
+  spamScore: number | null;
+  firstSeen: string | null;
+}
+
+export interface Backlink {
+  sourceUrl: string;
+  sourceDomain: string;
+  targetUrl: string;
+  anchor: string | null;
+  rel: "follow" | "nofollow" | "ugc" | "sponsored";
+  linkType: "anchor" | "image" | "redirect" | "canonical" | "other";
+  /** authority of the referring domain as reported by the provider, on a 0..100 scale */
+  domainRank: number | null;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  isNew: boolean;
+  isLost: boolean;
+}
+
+export interface BacklinkProvider {
+  readonly id: string;
+  readonly name: string;
+  summary(target: string): Promise<BacklinkSummary>;
+  /** links to the target, most authoritative first */
+  backlinks(target: string, opts?: { limit?: number; status?: "live" | "lost" }): Promise<{ total: number | null; items: Backlink[] }>;
 }
 
 export class ProviderError extends Error {

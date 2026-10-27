@@ -17,6 +17,7 @@ import { ScoreRing } from "@/components/ui/score-ring";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/states";
 import { TrendChart } from "@/components/charts/trend-chart";
+import { TaskProgress } from "@/components/tasks/task-progress";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -32,11 +33,33 @@ const sum = <T,>(rows: T[], f: (r: T) => number) => rows.reduce((a, r) => a + f(
 
 export default async function DashboardPage({ params }: PageProps<"/app/[org]/sites/[site]/dashboard">) {
   const { org: orgSlug, site: siteId } = await params;
-  const { website } = await requireWebsite(orgSlug, siteId);
+  const { website, org } = await requireWebsite(orgSlug, siteId);
   const supabase = await createClient();
   const base = `/app/${orgSlug}/sites/${website.id}`;
   const since = isoDaysAgo(DAYS);
   const prevSince = isoDaysAgo(DAYS * 2);
+
+  const [{ data: taskRows }, upcomingTasks] = await Promise.all([
+    supabase.rpc("task_stats", { p_org: org.id, p_site: website.id }),
+    supabase
+      .from("seo_tasks")
+      .select("id, title, priority, status, due_date")
+      .eq("website_id", website.id)
+      .in("status", ["todo", "in_progress"])
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(4),
+  ]);
+  const t0 = taskRows?.[0];
+  const taskStats = {
+    todo: Number(t0?.todo ?? 0),
+    in_progress: Number(t0?.in_progress ?? 0),
+    completed: Number(t0?.completed ?? 0),
+    ignored: Number(t0?.ignored ?? 0),
+    overdue: Number(t0?.overdue ?? 0),
+    completed_30d: Number(t0?.completed_30d ?? 0),
+    due_7d: Number(t0?.due_7d ?? 0),
+  };
 
   const [audit, issues, issueCounts, tracked, integrations, gsc, ga, queries, pages, dist, trackedRows] = await Promise.all([
     supabase
@@ -345,6 +368,8 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
             <EmptyState icon={ScanSearch} title="No issues to show" description="Issues appear here after a site audit runs." className="py-10" />
           )}
         </Card>
+        <div className="space-y-4">
+        <TaskProgress stats={taskStats} upcoming={upcomingTasks.data ?? []} href={`${base}/tasks`} today={isoDaysAgo(0)} />
         <Card>
           <CardHeader title="Recommended actions" />
           <ul className="divide-y divide-line">
@@ -363,6 +388,7 @@ export default async function DashboardPage({ params }: PageProps<"/app/[org]/si
             ))}
           </ul>
         </Card>
+        </div>
       </div>
     </>
   );

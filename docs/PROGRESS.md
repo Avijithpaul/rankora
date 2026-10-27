@@ -1,5 +1,189 @@
 # Rankora — Progress Log
 
+## Phase 6 — Competitors, Backlinks & SEO Workflow (2026-10-28)
+
+### Completed
+
+* **Competitor management**: up to 10 competitor domains per website (URL or bare host accepted, normalised; own
+  domain, IPs and single-label hosts refused); name/notes editable, domain immutable; removal deletes all stored
+  comparison data (cascade).
+* **Comparison UI** (`/competitors/[id]`, four tabs), each showing only data that was actually observed:
+  * **Rankings**: the daily rank check now also reads every competitor's position from the *same* SERP response,
+    with no extra provider call (`competitor_rankings`). Positions are compared only when both come from the same
+    check date. Summary shows you ahead, they ahead, only you/only them and visibility share.
+  * **Keyword overlap & gaps**: provider "ranked keywords" snapshots for your domain and the competitor's
+    (DataForSEO Labs `ranked_keywords`, up to 1,000 each, cached 7 days, counted as keyword lookups). Shows shared
+    keywords, gaps (they rank, you don't), shared keywords where they are ahead, and own-only keywords.
+  * **SEO audit comparison**: both homepages fetched now by RankoraBot (robots.txt respected), plus robots.txt and
+    sitemap. The same 15 checks are applied to both sides, shown next to your full audit score. It is labelled as a
+    single-page snapshot, not a competitor crawl.
+  * **Content/page comparison**: your page against their page for a keyword with the Content Optimizer's 21
+    checks, with comparison history. Each URL must be on its own domain.
+* **Backlink provider abstraction**: `BacklinkProvider` (summary, live and lost links) with a DataForSEO Backlinks
+  adapter. It is enabled only with `BACKLINK_PROVIDER=dataforseo` (separate subscription); otherwise the page shows
+  "Provider Not Connected". The Backlinks module has tabs for backlinks, referring domains, anchor text, new links
+  and lost links. Sync history and a monthly sync quota are kept. Each sync replaces the stored set, so links the
+  provider no longer returns are removed rather than shown as current. New/lost flags come from the provider and are
+  never inferred.
+* **SEO Task Management** (`/tasks`): four-column board (To Do, In Progress, Completed, Ignored) with quick status
+  changes; filters by assignee and priority; stat cards (to do, in progress, completed with completion rate,
+  overdue, due in 7 days).
+  * Task detail/edit page with all fields: title, website, page, priority, status, assignee, due date, source issue
+    and notes.
+  * Create tasks from issues: "Create task" on an issue, or "Create N tasks from open issues" on Site Audit. Title,
+    priority (from severity), page (single affected page) and notes (recommendation) come from the stored issue.
+  * At most one open task per issue (database index). Tasks show "Issue fixed" when a later audit resolves the issue.
+* **Dashboard**: "SEO task progress" card with completion bar, counts, overdue and the next open tasks.
+
+### Files changed
+
+New: `src/lib/competitors/{compare,service,data}.ts`, `src/lib/backlinks/service.ts`, `src/lib/tasks/utils.ts`,
+`src/lib/org/members.ts`, `src/lib/actions/{competitors,tasks}.ts`, `src/components/tasks/{task-form,task-progress}.tsx`,
+pages `competitors/page.tsx`, `competitors/[competitorId]/page.tsx`, `backlinks/page.tsx`, `tasks/page.tsx`,
+`tasks/[taskId]/page.tsx`, migration `…0011_competitors_backlinks_tasks.sql`, `scripts/live-phase6-check.mts`,
+tests `tests/unit/competitors.test.ts`, `tests/db/phase6.test.ts`.
+Changed: `src/lib/providers/{types,dataforseo,registry}.ts` (competitor SERP positions, ranked keywords, backlinks),
+`src/lib/keywords/service.ts` (rank batch stores competitor positions), audit page and issue page (task creation),
+dashboard, navigation (Competitors, Backlinks and SEO Tasks live; Reports moved to Phase 7), `src/lib/env.ts`,
+`.env.example`, `scripts/verify-live-db.mts` (41 tables), docs.
+
+### Database changes
+
+`…0011`: `competitor_rankings`, `domain_keyword_snapshots`, `competitor_snapshots`, `backlink_syncs` (RLS
+member-read, server-write only; snapshots member-deletable); `backlinks.is_new/is_lost/link_type`;
+`backlink_referring_domains()`, `backlink_anchors()`, `task_stats()` (security invoker); unique open task per issue;
+trigger that a task's issue belongs to the same website; column grants: competitors (name, notes) and seo_tasks
+(title, notes, priority, status, assignee, due date, page) — clients cannot change `completed_at`, `created_by`,
+`website_id` or a competitor's domain. Applied live; `db:verify` passes.
+
+### Tests performed
+
+* `npm run check`: lint, typecheck, **309 tests in 24 files** (+21), production build — all pass.
+* Unit: domain normalisation, competitor positions from one SERP (paid results ignored, subdomains matched),
+  ranked-keyword / backlink / summary parsers against the documented DataForSEO response fields, backlink provider
+  stays disconnected unless enabled, ranking summary (only same-SERP observations), overlap/gaps/behind, homepage
+  snapshot checks with unknowns kept unknown, task validation (dates, URL scheme, uuid), severity → priority,
+  overdue, completion rate.
+* DB (PGlite): server-only writes for competitor data and backlinks, immutable competitor domain, viewer cannot add,
+  cascade on delete, referring-domain/anchor aggregation and RLS, one open task per issue, issue must belong to the
+  website, completed_at protected, assignee must be a member, viewer read-only, task_stats.
+* Live (`npm run phase6:live-check`, temporary org cleaned up):
+  * Real homepage comparison of books.toscrape.com vs quotes.toscrape.com. Findings confirmed with curl: both
+    robots.txt return 404, quotes has no viewport and a 16-character title.
+  * Real page comparison (73.9 vs 48.8); off-site and metadata URLs refused.
+  * Overlap without a provider returns not_connected and stores nothing.
+  * Competitor position stored from the same SERP via a labelled test-double SERP through the real parser.
+  * Backlink sync with a test-double provider: 3 rows, aggregation as the user, stale rows removed on the next sync,
+    client insert denied.
+  * Tasks: duplicate open task and outside assignee rejected, task_stats overdue, completed_at set by the database,
+    stranger sees nothing.
+* Browser: signed-out access to the new routes redirects to sign-in, no server errors.
+
+### Known limitations
+
+* No real DataForSEO calls were made (no credentials). Parsers follow the documented response fields and are
+  fixture-tested, but the adapters have not run against the live API.
+* Competitor rankings exist only for your tracked keywords, from the date the competitor was added (no backfill).
+* Overlap and gaps cover at most 1,000 keywords per domain (best positions first) and depend on the provider's index.
+* The SEO audit comparison is a homepage snapshot; competitors are not fully crawled.
+* Backlinks store at most 1,000 live and 200 lost links per sync; totals come from the provider summary.
+* The signed-in UI of the new pages has not been viewed in a browser (requires the owner's account).
+* The Demo Project has no competitor, backlink or task data (read-only, honest empty states).
+
+### Next tasks
+
+* Phase 7: Reports (overview, audit, traffic, rankings, printable/PDF), team invitations, notifications, billing.
+* Optional: email/notification when a task is assigned; auto-suggest completing tasks whose issue is fixed.
+
+## Phase 5 — Page SEO & Content Optimization (2026-10-27)
+
+### Completed
+
+* **Page Explorer** (`/sites/[site]/pages`): every URL of the latest audit joined, in one SQL function
+  (`page_explorer()`), with Search Console clicks/impressions/position for the chosen range, GA4 page views
+  (matched by path), open audit issues and mapped keywords. Sort by clicks, impressions, views, position, issues,
+  inlinks or word count; filter by URL, status and indexability; source badges, or "not connected" links.
+* **Page details**: new Search performance and Traffic cards (28 days vs previous 28), Target keywords (target URL
+  or current ranking URL), rule-based **Recommendations** that combine crawl facts with search and traffic data
+  (low CTR on page one, striking distance, noindex with demand, no impressions, no keyword mapped, thin content
+  with traffic, orphan/deep page, metadata, open issues). Each states the numbers behind it. "Optimize content"
+  opens the Content Optimizer pre-filled.
+* **Content Optimizer** (`/sites/[site]/content`): target keyword plus a URL on the website (fetched through the
+  SSRF-safe fetcher) or a pasted draft (Markdown, HTML or plain text, with optional title/meta). 21 deterministic
+  checks in 8 categories: metadata, headings, keyword placement, structure, length, links, semantic coverage,
+  readability. Weighted 0–100 score, every check shows what was measured, the threshold and the fix, prioritised
+  recommendations, heading outline, most-used terms.
+* **Semantic coverage architecture**: related terms come only from real sources, each labelled — the user's own
+  terms, Search Console queries sharing a keyword word (by impressions) and saved keywords. No terms gives an
+  informational check, not an invented list.
+* **Internal-link opportunities**: rule-based, from crawled indexable pages that share keyword words and are not
+  linked yet.
+* **Optional AI suggestions** (`src/lib/ai/`): `AiProvider` interface, Claude adapter (`claude-opus-5-5`, structured
+  JSON output validated with zod), registry returning null without `ANTHROPIC_API_KEY` ("AI provider not
+  connected"). Six tasks: SEO titles, meta descriptions, content outline, FAQs, content improvements, internal-link
+  suggestions. Page text is fenced as untrusted data; the system prompt forbids invented facts and ranking
+  promises. Output is sanitised: lengths/counts capped, and internal-link targets must come from the crawled
+  candidate list. Every stored result carries `label: "AI suggestion"`, provider, model and time, and is shown
+  with an "AI suggestion" badge. **Nothing is ever published or written to the user's website.**
+* **History**: every analysis is stored in `content_analyses` (results, score, scoring version, word count,
+  AI suggestions). It is listed per website, readable by members and deletable by member+.
+
+### Files changed
+
+New: `src/lib/content/{document,analyze,sources,service,page-recommendations}.ts`, `src/lib/ai/{types,prompts,anthropic,registry}.ts`,
+`src/lib/actions/content.ts`, `src/components/content/{analyze-form,submit-button}.tsx`, pages `content/page.tsx`,
+`content/[analysisId]/page.tsx`, migration `…0010_content_optimizer.sql`, `scripts/live-content-check.mts`,
+tests `tests/unit/content.test.ts`, `tests/unit/ai-content.test.ts`, `tests/db/content.test.ts`.
+Changed: `pages/page.tsx` (Page Explorer), `pages/[pageId]/page.tsx`, `src/lib/env.ts` (`aiConfig`), `src/lib/navigation.ts`
+(Content Optimizer live; SEO Tasks moved to Phase 6), `.env.example`, `package.json` (`@anthropic-ai/sdk`, `content:live-check`), docs.
+
+### Database changes
+
+`…0010`: `content_analyses.scoring_version / word_count / ai_generated_at`, check that URL analyses have a source
+URL, index `(website_id, created_at desc)`; `url_path()`; `page_explorer()` (security invoker, authenticated only,
+wildcards in the search escaped). Applied to the live project; `db:verify` passes.
+
+### Tests performed
+
+* `npm run check`: lint, typecheck, **288 tests in 22 files** (+42), production build — all pass.
+* Unit: tokenizer/plural folding/phrase matching, Markdown and HTML draft parsing, main-content selection,
+  readability (Flesch only for English), term coverage and sources, link opportunities, every check category,
+  keyword stuffing, determinism, prompt fencing, output sanitising (invented internal URLs dropped), Claude adapter
+  with a mocked transport (request shape, refusal, auth error), page recommendations.
+* DB (PGlite): `page_explorer` joins (date range, GA4 non-landing by path, issues, keywords), filters, sorting,
+  paging, wildcard escaping, RLS isolation, anonymous denied; `content_analyses` server-write-only, member
+  read/delete, cross-tenant delete has no effect, URL constraint.
+* Live (`npm run content:live-check`, books.toscrape.com, temporary org cleaned up): 10-page audit → URL analysis
+  (score 84.9, 315 words, 21 checks, related terms with sources, 9 link opportunities) → draft analysis → off-site
+  URL and `127.0.0.1` rejected → AI path: no provider gives `not_connected`, a labelled test double is stored as
+  "AI suggestion", another website's analysis is not found → `page_explorer` as the signed-in user returns 10 rows
+  with the keyword mapping, a stranger gets 0.
+* Bugs found and fixed while testing: (1) on listing pages each product card is an `<article>`, so the first card
+  was taken as the main content (11 words); a single `<article>` is now used only when it is the only one.
+  (2) Text from adjacent blocks was concatenated ("PostBody"); block ends are now padded. (3) A refusal with
+  empty text made the SDK's `parse()` throw; the adapter now checks `stop_reason` and validates JSON itself.
+* Browser: signed-out access to the new routes redirects to sign-in with no server errors.
+
+### Known limitations
+
+* Not verified with a real AI call: no `ANTHROPIC_API_KEY` is configured. The adapter is covered by mocked-transport
+  tests and the storage path by the live check.
+* The signed-in UI of the new pages has not been viewed in a browser (it requires the owner's account).
+* Page metrics match URLs exactly: Search Console by the full normalized URL, GA4 by path without a query string.
+  Variants (trailing slash, parameters) are not merged.
+* Per-page *queries* are not available: the sync stores queries and pages separately (no query×page dimension).
+* Readability uses the English Flesch formula and a syllable heuristic; other languages get sentence and paragraph
+  statistics only.
+* URL mode fetches only pages on the website's own domain and does not render JavaScript.
+* The Demo Project is read-only, so new analyses cannot be run in it.
+* The crawler's own text extraction (`parse-page.ts`) has the same glued-words issue as (2) above; it affects audit
+  word counts and is flagged as a separate follow-up.
+
+### Next tasks
+
+* Phase 6: SEO Tasks (issue → task, board, assignees), Competitors, Backlinks (provider only), Reports.
+* Optional: query×page Search Console sync for per-page queries; URL variant merging in the Page Explorer.
+
 ## Phase 4 — Google Search Console & GA4 (2026-10-27)
 
 ### Completed

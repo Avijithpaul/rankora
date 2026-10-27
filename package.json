@@ -17,9 +17,12 @@
     "db:verify": "tsx --env-file=.env.local scripts/verify-live-db.mts",
     "audit:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-audit-check.mts",
     "keywords:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-keywords-check.mts",
-    "google:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-google-check.mts"
+    "google:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-google-check.mts",
+    "content:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-content-check.mts",
+    "phase6:live-check": "tsx --conditions=react-server --env-file=.env.local scripts/live-phase6-check.mts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "cheerio": "^1.2.0",

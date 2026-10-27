@@ -130,6 +130,44 @@ Locations use Google Ads geo IDs (`2000 + ISO 3166 numeric`, e.g. US = 2840).
 * Export: `/api/sites/[id]/keywords/export` (all / group / tracked) and `/api/keyword-research/[queryId]/export`.
   Cells are escaped against spreadsheet formula injection; demo exports are named `…-DEMO-DATA.csv`.
 
+## Competitor data and backlinks (Phase 6)
+
+```ts
+interface RankQuery { …; competitors?: string[] }          // competitor positions read from the SAME SERP response
+interface DomainKeywordProvider { rankedKeywords(domain, market, { limit }) }
+interface BacklinkProvider { summary(target); backlinks(target, { limit, status: 'live' | 'lost' }) }
+```
+
+| Feature | DataForSEO endpoint | Notes |
+|---|---|---|
+| Competitor positions | `serp/{engine}/organic/live/advanced` (existing rank check) | no extra call; organic results only; subdomains count |
+| Overlap & gaps | `dataforseo_labs/google/ranked_keywords/live` | `keyword_data.keyword`, `keyword_info.search_volume/cpc`, `ranked_serp_element.serp_item.rank_group/url`; 1,000 per domain, cached 7 days |
+| Backlink summary | `backlinks/summary/live` | `backlinks`, `referring_domains`, `referring_main_domains`, `referring_ips`, `broken_backlinks`, `rank` |
+| Backlinks | `backlinks/backlinks/live` | `backlinks_status_type` live (1,000) and lost (200); `url_from`, `domain_from`, `url_to`, `anchor`, `dofollow`, `attributes`, `item_type`, `domain_from_rank`, `first_seen`, `last_seen`, `is_new`, `is_lost`; `rank_scale: one_hundred` |
+
+* `getDomainKeywordProvider()` uses the DataForSEO credentials. `getBacklinkProvider()` additionally requires
+  `BACKLINK_PROVIDER=dataforseo`, because the Backlinks API is a separate subscription.
+* Field names follow the DataForSEO v3 documentation (checked 2026-10-28); parsers are fixture-tested, but not yet run
+  against the live API.
+
+## AI suggestions (optional, Phase 5)
+
+`src/lib/ai/` holds a provider-neutral interface, `AiProvider.generate(task, context)`, for six tasks: `titles`, `meta_descriptions`,
+`outline`, `faqs`, `improvements`, `internal_links`. The registry returns the **Claude** adapter when `ANTHROPIC_API_KEY` is set
+(model `claude-opus-5-5`, override with `ANTHROPIC_MODEL`). Without it, it returns `null` and the UI shows **“AI provider not connected”**.
+The rule-based Content Optimizer works without AI.
+
+* **Structured output**: each task has a zod schema sent as `output_config.format`. The response is JSON-parsed and validated
+  server-side, and refusals (`stop_reason: "refusal"`), truncation and API errors map to typed, user-safe messages.
+* **Grounding**: the prompt contains the analysis (failing checks, missing related terms), the heading outline and up to 24,000
+  characters of page text fenced as untrusted data. The system prompt forbids invented facts, statistics, prices and ranking promises.
+* **Post-processing** (`sanitizeOutput`): lengths and counts are capped, and internal-link targets are kept only when they are in
+  the crawled candidate list and not already linked. The model cannot introduce URLs.
+* **Labelling**: results are stored in `content_analyses.ai_suggestions[task]` with `label: "AI suggestion"`, provider, model and
+  timestamp, and are rendered with an “AI suggestion” badge. They are never published, and Rankora has no write access to user websites.
+* **Cost controls**: on demand only (one button per task), 30 requests/hour/user (`rate_limit_hit('ai.suggest')`), one call per
+  request, cached system prompt. Another provider can be added by implementing `AiProvider` and returning it from `registry.ts`.
+
 ## Demo Mode (implemented)
 
 * Entry points: "Open Demo Project" on the onboarding page and "+ Open Demo Project" in the organization switcher (`/onboarding/demo`).

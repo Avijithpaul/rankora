@@ -59,7 +59,9 @@ App (org scope)    /app → /app/[org] → /app/[org]/websites(/new)
 App (site scope)   /app/[org]/sites/[site]/
                      dashboard · analytics · search-performance · keyword-research
                      keywords · rank-tracker · competitors · backlinks · audit
-                     technical · pages · content · tasks · reports · integrations · settings
+                     technical · pages (Page Explorer) · content(/[analysisId]) · competitors(/[id])
+                     backlinks · tasks(/[taskId]) · reports
+                     integrations · settings
 Admin              /admin (platform_admins only; 404 otherwise)
 Planned handlers   /api/cron/crawl, /api/integrations/google/{start,callback},
                    /api/sites/[id]/keywords/export, /api/reports/[id]/pdf
@@ -128,6 +130,11 @@ src/
   lib/actions/            server actions (validated, authorized)
   lib/security/           url-safety (SSRF), safe-fetch, crypto (AES-GCM)
   lib/seo/                rule catalog + scoring engine (pure, unit tested)
+  lib/competitors/        competitor comparison (pure), snapshot/overlap services, data loaders
+  lib/backlinks/          backlink sync service (provider → backlinks table)
+  lib/tasks/              task validation, labels, stats helpers
+  lib/content/            Content Optimizer: document model, 21-check analyzer, term sources, page recommendations
+  lib/ai/                 optional AI suggestion providers (interface, prompts, Claude adapter, registry)
   lib/supabase/           clients + generated DB types
   lib/validation/         zod schemas
 supabase/migrations/      SQL schema, RLS, grants, RPCs
