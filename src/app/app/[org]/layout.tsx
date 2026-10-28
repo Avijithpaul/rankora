@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppSidebar } from "@/components/app/sidebar";
 import { SiteSwitcher } from "@/components/app/site-switcher";
 import { UserMenu } from "@/components/app/user-menu";
+import { displayName } from "@/lib/profile";
 
 export default async function OrgLayout({ children, params }: LayoutProps<"/app/[org]">) {
   const { org: slug } = await params;
@@ -14,7 +15,7 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
     listMemberships(),
     listWebsites(org.id),
     supabase.from("platform_admins").select("role").eq("user_id", user.id).maybeSingle(),
-    supabase.from("profiles").select("full_name, last_organization_id").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, avatar_url, last_organization_id").eq("id", user.id).maybeSingle(),
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
   ]);
 
@@ -55,7 +56,15 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
                 <span className="animate-pop absolute -right-0.5 -top-0.5 grid min-w-4 place-items-center rounded-full bg-critical px-1 text-[10px] font-semibold leading-4 text-white">{unread > 99 ? "99+" : unread}</span>
               ) : null}
             </Link>
-            <UserMenu orgSlug={org.slug} name={profile?.full_name ?? user.email ?? "Account"} email={user.email} role={role} />
+            <UserMenu
+              orgSlug={org.slug}
+              orgName={org.name}
+              name={displayName(profile?.full_name, user.email)}
+              email={user.email}
+              avatarUrl={profile?.avatar_url ?? null}
+              provider={user.provider}
+              role={role}
+            />
           </div>
         </header>
         {org.is_demo && (

@@ -10,11 +10,14 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { Enums, Tables } from "@/lib/supabase/database.types";
+import { toProvider, type AuthProvider } from "@/lib/profile";
 
 export type OrgRole = Enums<"org_role">;
 export interface SessionUser {
   id: string;
   email: string | null;
+  /** how this session signed in (from the verified JWT's app_metadata) */
+  provider: AuthProvider;
 }
 
 const ROLE_RANK: Record<OrgRole, number> = { viewer: 1, member: 2, admin: 3, owner: 4 };
@@ -30,7 +33,31 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims?.sub) return null;
-  return { id: data.claims.sub, email: (data.claims.email as string | undefined) ?? null };
+  const appMeta = (data.claims.app_metadata ?? {}) as { provider?: unknown };
+  return { id: data.claims.sub, email: (data.claims.email as string | undefined) ?? null, provider: toProvider(appMeta.provider) };
+});
+
+export interface AccountDetails {
+  createdAt: string | null;
+  lastSignInAt: string | null;
+  /** every sign-in method linked to this account, with the email each one uses */
+  identities: { provider: AuthProvider; email: string | null }[];
+}
+
+/**
+ * Sign-in history and linked identities for the profile page. Calls the Auth server
+ * (getUser), so use it only where the details are shown, not in layouts.
+ */
+export const getAccountDetails = cache(async (): Promise<AccountDetails | null> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  const u = data.user;
+  const identities = (u.identities ?? []).map((i) => ({
+    provider: toProvider(i.provider),
+    email: typeof i.identity_data?.email === "string" ? i.identity_data.email : null,
+  }));
+  return { createdAt: u.created_at ?? null, lastSignInAt: u.last_sign_in_at ?? null, identities };
 });
 
 export async function requireUser(next?: string): Promise<SessionUser> {

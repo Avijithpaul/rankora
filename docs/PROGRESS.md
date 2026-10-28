@@ -1,5 +1,30 @@
 # Rankora — Progress Log
 
+## Profile and account menu (2026-10-28)
+
+* **Account menu** (top right of every app page, `components/app/user-menu.tsx`): profile photo from Google/GitHub (or initials),
+  name, email, "Signed in with Google / GitHub / Email & password", current organization and role, links to profile,
+  organization settings, plan & billing, notifications and the website, a theme switch and sign out. Closes on outside click and Escape.
+* **Profile page** (`/app/[org]/account`): cover header with large avatar, member since, last sign-in, organizations count;
+  name editing; linked sign-in methods with their emails; set or change password (OAuth users can add one); organizations list.
+* **Public site**: signed-in visitors see their avatar and a Dashboard button instead of Sign in (client-side, pages stay static).
+* The sign-in provider comes from the verified JWT (`getClaims`); linked identities and sign-in dates from `auth.getUser()` on the profile page only.
+  Avatar URLs are rendered only when they are https. Tests: `tests/unit/profile.test.ts` and an E2E test for the menu, profile page and public header.
+
+## Interactive motion (2026-10-28)
+
+* **Scroll**: `<Reveal variant="up|left|right|zoom|blur|flip" each>` (CSS scroll-driven, no JS; unsupported browsers just show content),
+  a reading-progress bar in the marketing header and `[data-parallax]` for decorative layers.
+* **Pointer** (`components/motion/pointer-effects.tsx`, one delegated listener): a spotlight that follows the cursor on every
+  card (`.card-surface`, `[data-spotlight]`), a cursor glow in hero sections (`[data-pointer]` + `.cursor-glow`), a gentle 3D tilt
+  (`[data-tilt]`) on product previews and magnetic CTAs (`[data-magnetic]`). Off on touch devices and with reduced motion.
+* **Hover**: light sweep on primary buttons, animated underline in the header navigation, card border glow.
+* **Page transitions**: route templates wrap pages in React `<ViewTransition>` (crossfade with a slight lift and blur);
+  browsers without view transitions keep the CSS enter animation.
+* Applied across home, features, feature pages, pricing, about, project, academic demo, contact and the sign-in screens.
+  `prefers-reduced-motion` and print disable all of it. Verified: 273 unit tests, 15 E2E tests (including no horizontal
+  scroll at 375/768/1440 px) and a manual pass in the browser (spotlight, tilt, cursor glow, reveal and page transition).
+
 ## Contact page and direct email (2026-10-28)
 
 * New `/contact` page: email card with copy and mail-app actions, message form, help topics and FAQ.

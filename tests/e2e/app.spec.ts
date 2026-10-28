@@ -140,6 +140,27 @@ test.describe("SaaS flows", () => {
     await expect(page.getByRole("heading", { name: "New task" })).toHaveCount(0);
   });
 
+  test("the account menu and profile page show who is signed in", async ({ page }) => {
+    const s = state();
+    await signIn(page, s.owner);
+    await page.goto(`/app/${s.orgSlug}/billing`);
+    await page.getByRole("button", { name: /Account menu for E2E owner/ }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByText(s.owner.email)).toBeVisible();
+    await expect(menu.getByText(/Signed in with/)).toContainText("Email & password");
+    await page.screenshot({ path: "test-results/e2e/screens/account-menu.png" });
+    await menu.getByRole("menuitem", { name: "Your profile" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "E2E owner" })).toBeVisible();
+    await expect(page.getByText("Member since")).toBeVisible();
+    await expect(page.getByText("Sign-in methods")).toBeVisible();
+    await page.screenshot({ path: "test-results/e2e/screens/profile.png", fullPage: true });
+
+    // the public site recognises the session too
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Signed in as E2E owner/ })).toBeVisible();
+  });
+
   test("tenants are isolated and /admin is hidden from non-admins", async ({ page }) => {
     const s = state();
     await signIn(page, s.outsider);

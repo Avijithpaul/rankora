@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
-import { ButtonLink } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HeaderAccount } from "@/components/marketing/header-account";
 import { MARKETING_FEATURES } from "./features-data";
 
 const NAV = [
@@ -22,24 +22,20 @@ const LEARN = [
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
+      <div className="scroll-progress" aria-hidden />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-canvas/80 backdrop-blur-xl">
         <div className="mx-auto flex h-[72px] max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Logo />
           <nav className="mx-auto hidden items-center gap-8 text-[15px] text-ink-2 lg:flex" aria-label="Primary">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="transition-colors hover:text-ink">
+              <Link key={n.href} href={n.href} className="nav-link transition-colors hover:text-ink">
                 {n.label}
               </Link>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 lg:ml-0">
             <ThemeToggle />
-            <Link href="/login" className="hidden px-2 text-[15px] font-medium text-ink hover:text-brand sm:inline">
-              Sign in
-            </Link>
-            <ButtonLink href="/register" size="sm" className="h-10 px-4">
-              Get started free
-            </ButtonLink>
+            <HeaderAccount />
           </div>
         </div>
         <nav className="flex gap-5 overflow-x-auto border-t border-line/60 px-4 py-2 text-sm text-ink-2 lg:hidden" aria-label="Primary (mobile)">
@@ -50,7 +46,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
       </header>
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 overflow-x-clip">{children}</main>
       <footer className="border-t border-line bg-surface/40">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-5">
           <div>
