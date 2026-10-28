@@ -86,8 +86,10 @@ export default function ContactPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-ink">Email</p>
-                  <a href={mailto("Hello")} className="mt-0.5 block break-all text-lg font-semibold text-brand hover:underline">
-                    {CONTACT_EMAIL}
+                  <a href={mailto("Hello")} className="mt-0.5 block break-words text-base font-semibold text-brand hover:underline sm:text-lg">
+                    {/* allow a line break only after the "@" on narrow screens */}
+                    {CONTACT_EMAIL.split("@")[0]}@<wbr />
+                    {CONTACT_EMAIL.split("@")[1]}
                   </a>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <CopyEmailButton email={CONTACT_EMAIL} />
