@@ -352,25 +352,50 @@ h2 {
   animation: rk-shine 6s linear infinite;
 }
 
-/* scroll reveal (components/motion/reveal.tsx): CSS scroll-driven, no JS.
-   Unsupported browsers show the content without animation, so nothing can stay hidden.
-   [data-reveal-children] reveals each child on its own, which staggers rows naturally. */
-@supports (animation-timeline: view()) {
-  [data-reveal],
-  [data-reveal-children] > * {
-    animation: rk-rv-up linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 45%;
-  }
-  [data-reveal="left"] { animation-name: rk-rv-left; }
-  [data-reveal="right"] { animation-name: rk-rv-right; }
-  [data-reveal="zoom"],
-  [data-reveal-children="zoom"] > * { animation-name: rk-rv-zoom; }
-  [data-reveal="blur"],
-  [data-reveal-children="blur"] > * { animation-name: rk-rv-blur; }
-  [data-reveal="flip"],
-  [data-reveal-children="flip"] > * { animation-name: rk-rv-flip; }
+/* Scroll reveal for Reveal blocks, Reveal grids and every Card
+   (components/motion/card-reveal.tsx marks elements with [data-in] as they enter the
+   viewport; cards entering together get a growing --rk-delay, so they rise one after another).
+   Only active when html[data-reveal-ready] is set, i.e. JavaScript runs and motion is allowed. */
+html[data-reveal-ready] :is([data-reveal], [data-reveal-children] > *, .card-surface) {
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--rk-delay, 0ms),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1) var(--rk-delay, 0ms),
+    filter 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--rk-delay, 0ms),
+    translate 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s,
+    box-shadow 0.3s,
+    background-color 0.3s;
+}
+html[data-reveal-ready] :is([data-reveal], [data-reveal-children] > *, .card-surface):not([data-in]) {
+  opacity: 0;
+  transform: translateY(32px) scale(0.98);
+  animation: none;
+}
+html[data-reveal-ready] :is([data-reveal="left"], [data-reveal-children="left"] > *):not([data-in]) { transform: translateX(-48px); }
+html[data-reveal-ready] :is([data-reveal="right"], [data-reveal-children="right"] > *):not([data-in]) { transform: translateX(48px); }
+html[data-reveal-ready] :is([data-reveal="zoom"], [data-reveal-children="zoom"] > *):not([data-in]) { transform: scale(0.9); }
+html[data-reveal-ready] :is([data-reveal="blur"], [data-reveal-children="blur"] > *):not([data-in]) { transform: translateY(16px); filter: blur(12px); }
+html[data-reveal-ready] :is([data-reveal="flip"], [data-reveal-children="flip"] > *):not([data-in]) { transform: perspective(900px) rotateX(22deg) translateY(28px); }
+/* the enter transition replaces the CSS fade-up animation on cards */
+html[data-reveal-ready] :is([data-reveal], [data-reveal-children] > *, .card-surface)[data-in] {
+  animation: none;
+}
 
+/* Interactive cards (links, marketing tiles): lift, glow and brighten on hover, like a raised tile */
+:is(a.card-surface, [data-reveal-children] > :is(a, .card-surface, [data-spotlight]), a:not([data-reveal-children] > a) > .card-surface):hover,
+a:not([data-reveal-children] > a):hover > .card-surface {
+  translate: 0 -6px;
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+  box-shadow:
+    0 18px 40px -18px color-mix(in srgb, var(--brand) 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--brand) 16%, transparent);
+}
+/* a card inside a lifted link only lights up its border */
+[data-reveal-children] > a:hover .card-surface {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+}
+
+@supports (animation-timeline: view()) {
   /* decorative layers drift slower than the page */
   [data-parallax] {
     animation: rk-parallax linear both;
@@ -561,7 +586,8 @@ h2 {
     transition: none !important;
   }
   [data-reveal],
-  [data-reveal-children] > * {
+  [data-reveal-children] > *,
+  .card-surface {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
