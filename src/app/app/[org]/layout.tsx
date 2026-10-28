@@ -10,13 +10,13 @@ export default async function OrgLayout({ children, params }: LayoutProps<"/app/
   const { org: slug } = await params;
   const { org, user, role } = await requireOrg(slug);
   const supabase = await createClient();
-  const [memberships, sites, { data: admin }, { data: profile }] = await Promise.all([
+  const [memberships, sites, { data: admin }, { data: profile }, { count: unread }] = await Promise.all([
     listMemberships(),
     listWebsites(org.id),
     supabase.from("platform_admins").select("role").eq("user_id", user.id).maybeSingle(),
     supabase.from("profiles").select("full_name, last_organization_id").eq("id", user.id).maybeSingle(),
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
   ]);
-  const { count: unread } = await supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null);
 
   // Remember the last organization used (best-effort).
   if (profile && profile.last_organization_id !== org.id) {

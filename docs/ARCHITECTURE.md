@@ -93,6 +93,12 @@ Every page and server action calls it; RLS is the final enforcement.
 `cacheComponents` is **disabled**. Nearly all app routes are per-user and read the session, so the
 classic dynamic model is simpler and avoids session-specific prerendered shells. Marketing pages are static.
 
+### Region
+
+Functions run in `sin1` (Singapore, `vercel.json`) next to the Supabase project (`ap-southeast-1`).
+Every app page makes several database round trips, so the function region must match the database
+region; running in the default `iad1` added ~200 ms per query.
+
 ## 2. Route structure
 
 ```
