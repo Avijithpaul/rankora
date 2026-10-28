@@ -6,7 +6,7 @@ export default function AboutPage() {
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       <h1 className="text-4xl font-semibold tracking-tight">About Rankora</h1>
-      <div className="mt-6 space-y-4 text-ink-2">
+      <div data-reveal-children="blur" className="mt-6 space-y-4 text-ink-2">
         <p>
           Rankora is an SEO platform for teams who want to understand their search performance, fix what matters and show
           progress over time — without black-box scores or made-up numbers.

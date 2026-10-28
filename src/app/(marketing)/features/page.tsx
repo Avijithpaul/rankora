@@ -11,9 +11,9 @@ export default function FeaturesPage() {
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <h1 className="text-4xl font-semibold tracking-tight">Features</h1>
       <p className="mt-3 max-w-2xl text-muted">From technical audits to rankings and reporting — built around data you can verify.</p>
-      <div className="mt-10 grid gap-4 md:grid-cols-2">
+      <div data-reveal-children="flip" className="mt-10 grid gap-4 md:grid-cols-2">
         {MARKETING_FEATURES.map((f) => (
-          <Link key={f.slug} href={`/${f.slug}`} className="animate-fade-up hover-lift group rounded-xl border border-line bg-surface/60 p-6 hover:border-brand/40 hover:shadow-[0_0_40px_var(--glow)]">
+          <Link key={f.slug} href={`/${f.slug}`} data-spotlight className="animate-fade-up hover-lift group rounded-xl border border-line bg-surface/60 p-6 hover:border-brand/40 hover:shadow-[0_0_40px_var(--glow)]">
             <p className="text-sm font-semibold text-brand">{f.name}</p>
             <h2 className="mt-2 text-lg font-semibold">{f.headline}</h2>
             <p className="mt-2 text-sm text-muted">{f.intro}</p>
@@ -24,7 +24,7 @@ export default function FeaturesPage() {
         ))}
       </div>
       <h2 className="mt-16 text-xl font-semibold">All modules</h2>
-      <ul className="mt-4 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <ul data-reveal-children="left" className="mt-4 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         {SITE_MODULES.map((m) => (
           <li key={m.slug}>
             <span className="font-medium text-ink">{m.label}</span> — <span className="text-muted">{m.summary}</span>

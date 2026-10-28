@@ -151,9 +151,9 @@ export default function AcademicDemoPage() {
         </ol>
       </div>
 
-      <ol className="stagger mt-10 space-y-4">
+      <ol data-reveal-children="left" className="mt-10 space-y-4">
         {STEPS.map((s) => (
-          <li key={s.n} className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
+          <li key={s.n} data-spotlight className="rounded-[var(--radius-card)] border border-line bg-surface p-5">
             <div className="flex flex-wrap items-center gap-3">
               <span className="grid size-8 place-items-center rounded-full bg-brand text-sm font-semibold text-on-brand">{s.n}</span>
               <h2 className="text-lg font-semibold">{s.title}</h2>
@@ -182,7 +182,7 @@ export default function AcademicDemoPage() {
       <section id="database" className="mt-12 scroll-mt-24">
         <h2 className="text-2xl font-semibold">Database relationships</h2>
         <p className="mt-2 text-sm text-ink-2">Every tenant table also carries organization_id, and row-level security lets a user see only their own organizations.</p>
-        <div className="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-line">
+        <div data-reveal="zoom" className="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-line">
           <table className="w-full text-sm">
             <tbody className="divide-y divide-line">
               {RELATIONS.map(([a, card, b]) => (

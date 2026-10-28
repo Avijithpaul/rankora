@@ -159,7 +159,7 @@ export default function ProjectDocsPage() {
         <h2 id="architecture" className="text-2xl font-semibold">
           Architecture at a glance
         </h2>
-        <figure className="mt-4 overflow-hidden rounded-2xl border border-line bg-[#0b1416] shadow-[var(--shadow-card)]">
+        <figure data-reveal="zoom" className="mt-4 overflow-hidden rounded-2xl border border-line bg-[#0b1416] shadow-[var(--shadow-card)]">
           <a href="/architecture.svg" target="_blank" rel="noopener" title="Open the diagram full size">
             <Image
               src="/architecture.svg"
@@ -210,7 +210,7 @@ export default function ProjectDocsPage() {
       </section>
 
       {TOPICS.map((t) => (
-        <section key={t.id} id={t.id} aria-labelledby={`${t.id}-h`} className="mt-10 scroll-mt-24 border-t border-line pt-8">
+        <section key={t.id} id={t.id} aria-labelledby={`${t.id}-h`} data-reveal="blur" className="mt-10 scroll-mt-24 border-t border-line pt-8">
           <h2 id={`${t.id}-h`} className="text-2xl font-semibold">
             {t.title}
           </h2>

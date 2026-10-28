@@ -16,9 +16,9 @@ export default function PricingPage() {
         <h1 className="text-5xl font-extrabold tracking-tight">Simple, <span className="text-gradient">usage-based</span> plans</h1>
         <p className="mt-3 text-muted">Start free. Upgrade when you add more websites or keywords.</p>
       </div>
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-reveal-children="flip" className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {PLAN_CATALOG.map((p) => (
-          <div key={p.id} className={cn("animate-fade-up hover-lift flex flex-col rounded-2xl border bg-surface/60 p-6 hover:shadow-[0_0_40px_var(--glow)]", p.featured ? "gradient-border bg-[radial-gradient(120%_60%_at_50%_0%,var(--glow),transparent_70%)] shadow-[0_0_50px_var(--glow)]" : "border-line")}>
+          <div key={p.id} data-spotlight={p.featured ? undefined : ""} className={cn("animate-fade-up hover-lift flex flex-col rounded-2xl border bg-surface/60 p-6 hover:shadow-[0_0_40px_var(--glow)]", p.featured ? "gradient-border bg-[radial-gradient(120%_60%_at_50%_0%,var(--glow),transparent_70%)] shadow-[0_0_50px_var(--glow)]" : "border-line")}>
             <div className="flex items-center justify-between">
               <p className="font-semibold">{p.name}</p>
               {p.featured && <span className="rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-semibold text-on-brand">Most popular</span>}

@@ -42,8 +42,9 @@ const STEPS = [
 export default function HomePage() {
   return (
     <>
-      <section className="relative overflow-hidden">
+      <section data-pointer className="relative overflow-hidden">
         <div className="hero-glow pointer-events-none absolute inset-0" aria-hidden />
+        <div className="cursor-glow" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-20 text-center sm:px-6 sm:pt-28">
           <span className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-brand-ink">
             <Sparkles className="animate-float size-3.5" aria-hidden /> All-in-one SEO platform
@@ -64,7 +65,7 @@ export default function HomePage() {
 
         {/* Product preview — illustrative sample, labelled as such */}
         <figure className="animate-scale-in delay-4 relative mx-auto max-w-5xl px-4 pb-24 sm:px-6">
-          <div className="rounded-3xl border border-line bg-surface/80 p-2 shadow-[0_30px_80px_-20px_var(--glow)] backdrop-blur">
+          <div data-tilt className="rounded-3xl border border-line bg-surface/80 p-2 shadow-[0_30px_80px_-20px_var(--glow)] backdrop-blur">
             <div className="grid gap-2 md:grid-cols-[1fr_1.4fr]">
               <div className="rounded-2xl bg-canvas/60 p-6">
                 <div className="flex items-center justify-between">
@@ -111,7 +112,7 @@ export default function HomePage() {
           <figcaption className="mt-3 text-center text-xs text-muted">Illustration with sample values.</figcaption>
         </figure>
 
-        <Reveal className="relative mx-auto max-w-5xl px-4 pb-20 sm:px-6">
+        <Reveal variant="zoom" className="relative mx-auto max-w-5xl px-4 pb-20 sm:px-6">
           <dl className="grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-surface/50 md:grid-cols-4">
             {FACTS.map(([n, l]) => (
               <div key={l} className="border-line px-6 py-6 text-center [&:not(:last-child)]:border-r max-md:[&:nth-child(2)]:border-r-0 max-md:[&:nth-child(-n+2)]:border-b">
@@ -128,15 +129,16 @@ export default function HomePage() {
 
       <section className="border-t border-line/70">
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-          <Reveal>
+          <Reveal variant="blur">
             <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-brand">Everything in one workspace</p>
             <h2 className="mx-auto mt-3 max-w-2xl text-center text-4xl font-bold tracking-tight text-ink">One platform instead of five SEO tools</h2>
           </Reveal>
           <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {MODULES.map((m) => (
-              <Reveal key={m.title}>
+              <Reveal key={m.title} variant="flip">
               <Link
                 href={m.href}
+                data-spotlight
                 className="hover-lift group block h-full rounded-2xl border border-line bg-surface/60 p-6 hover:border-brand/40 hover:shadow-[0_0_40px_var(--glow)]"
               >
                 <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -153,12 +155,12 @@ export default function HomePage() {
 
       <section className="border-t border-line/70 bg-surface/40">
         <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
-          <Reveal>
+          <Reveal variant="blur">
             <h2 className="text-center text-4xl font-bold tracking-tight text-ink">From URL to results in three steps</h2>
           </Reveal>
           <ol className="mt-14 grid gap-6 md:grid-cols-3">
             {STEPS.map(([t, b], i) => (
-              <Reveal as="li" key={t} className="hover-lift relative rounded-2xl border border-line bg-surface p-7 hover:border-brand/40">
+              <Reveal as="li" key={t} variant="zoom" data-spotlight className="hover-lift relative rounded-2xl border border-line bg-surface p-7 hover:border-brand/40">
                 <span className="font-[family-name:var(--font-display)] text-5xl font-extrabold text-brand/25">0{i + 1}</span>
                 <h3 className="mt-3 text-lg font-semibold text-ink">{t}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted">{b}</p>
@@ -174,8 +176,8 @@ export default function HomePage() {
             ["Explainable scoring", "Every point of the SEO score traces back to a rule, a weight and the pages that failed it."],
             ["Honest data", "No invented search volumes, backlinks or traffic. Every metric shows its source, and sample data is labelled."],
             ["Secure by design", "Row-level security per organization, encrypted OAuth tokens and an SSRF-hardened crawler."],
-          ].map(([t, b]) => (
-            <Reveal key={t} className="hover-lift rounded-2xl border border-line bg-surface/60 p-7 hover:border-brand/40">
+          ].map(([t, b], i) => (
+            <Reveal key={t} variant={(["left", "up", "right"] as const)[i]} className="hover-lift rounded-2xl border border-line bg-surface/60 p-7 hover:border-brand/40">
               <ShieldCheck className="size-5 text-brand" aria-hidden />
               <h3 className="mt-4 font-semibold text-ink">{t}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">{b}</p>
@@ -186,12 +188,12 @@ export default function HomePage() {
 
       <section className="border-t border-line/70 bg-surface/40">
         <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
-          <Reveal>
+          <Reveal variant="blur">
             <h2 className="text-center text-4xl font-bold tracking-tight text-ink">Questions, answered</h2>
           </Reveal>
           <div className="mt-12 space-y-3">
-            {FAQ.map(([q, a]) => (
-              <Reveal key={q}>
+            {FAQ.map(([q, a], i) => (
+              <Reveal key={q} variant={i % 2 ? "right" : "left"}>
                 <details className="group rounded-2xl border border-line bg-surface p-5 transition-colors open:border-brand/40 hover:border-brand/30">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
                     {q}
@@ -205,18 +207,19 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative overflow-hidden border-t border-line/70">
+      <section data-pointer className="relative overflow-hidden border-t border-line/70">
         <div className="hero-glow pointer-events-none absolute inset-0" aria-hidden />
-        <Reveal className="relative mx-auto max-w-3xl px-4 py-24 text-center sm:px-6">
+        <div className="cursor-glow" aria-hidden />
+        <Reveal variant="zoom" className="relative mx-auto max-w-3xl px-4 py-24 text-center sm:px-6">
           <h2 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl">
             Run your first audit <span className="text-gradient">today</span>
           </h2>
           <p className="mt-4 text-lg text-ink-2">Create a workspace, add your website and get a baseline in minutes.</p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <ButtonLink href="/register" size="lg">
+            <ButtonLink href="/register" size="lg" data-magnetic>
               Get started free <ArrowRight aria-hidden />
             </ButtonLink>
-            <ButtonLink href="/academic-demo" size="lg" variant="secondary">
+            <ButtonLink href="/academic-demo" size="lg" variant="secondary" data-magnetic>
               See the demo tour
             </ButtonLink>
           </div>

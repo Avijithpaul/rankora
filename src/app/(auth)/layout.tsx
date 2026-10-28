@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
         {/* sample product preview, labelled as such */}
         <div className="relative mx-auto mt-14 w-full max-w-md animate-float">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_30px_80px_-20px_rgb(46_196_173/0.35)] backdrop-blur">
+          <div data-tilt className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 shadow-[0_30px_80px_-20px_rgb(46_196_173/0.35)] backdrop-blur">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-white">SEO health</p>
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-sidebar-ink">Sample</span>

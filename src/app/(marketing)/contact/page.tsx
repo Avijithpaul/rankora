@@ -61,8 +61,9 @@ const FAQ = [
 
 export default function ContactPage() {
   return (
-    <div className="relative overflow-hidden">
+    <div data-pointer className="relative overflow-hidden">
       <div className="hero-glow pointer-events-none absolute inset-x-0 top-0 h-[28rem] opacity-80" aria-hidden />
+      <div className="cursor-glow" aria-hidden />
 
       <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
@@ -145,7 +146,7 @@ export default function ContactPage() {
           <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">How can we help?</h2>
           <p className="mt-2 text-center text-muted">Many answers are one click away.</p>
         </Reveal>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div data-reveal-children="flip" className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {TOPICS.map((t) => (
             <Link key={t.title} href={t.href} className="group hover-lift">
               <Card className="flex h-full flex-col p-5 group-hover:border-brand/40">
@@ -168,8 +169,8 @@ export default function ContactPage() {
             <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Quick answers</h2>
           </Reveal>
           <div className="mt-8 space-y-3">
-            {FAQ.map(([q, a]) => (
-              <Reveal key={q}>
+            {FAQ.map(([q, a], i) => (
+              <Reveal key={q} variant={i % 2 ? "right" : "left"}>
                 <details className="group rounded-2xl border border-line bg-surface p-5 transition-colors open:border-brand/40 hover:border-brand/30">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-ink [&::-webkit-details-marker]:hidden">
                     {q}

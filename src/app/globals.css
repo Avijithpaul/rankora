@@ -144,10 +144,19 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--brand) 55%, var(--line-strong)); background-clip: content-box; }
 
-/* Card surface: a faint teal light from the top edge */
+/* Card surface: a faint teal light from the top edge, plus a spotlight that follows the
+   pointer (--mx / --my are set by components/motion/pointer-effects.tsx; off-screen by default) */
 .card-surface {
   background:
+    radial-gradient(320px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--brand) 10%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--brand) 5%, var(--surface)) 0%, var(--surface) 42%);
+}
+.card-surface:hover {
+  border-color: color-mix(in srgb, var(--brand) 32%, var(--line));
+}
+/* same spotlight for marketing tiles that keep their own background colour */
+[data-spotlight] {
+  background-image: radial-gradient(320px circle at var(--mx, -999px) var(--my, -999px), color-mix(in srgb, var(--brand) 12%, transparent), transparent 70%);
 }
 
 /* App backdrop: soft glow behind page content */
@@ -251,9 +260,57 @@ h2 {
   to { transform: translateX(100%); }
 }
 
-/* page enter (route templates) */
+/* scroll-reveal variants (data-reveal="up|left|right|zoom|blur|flip") */
+@keyframes rk-rv-up {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-rv-left {
+  from { opacity: 0; transform: translateX(-48px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-rv-right {
+  from { opacity: 0; transform: translateX(48px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-rv-zoom {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-rv-blur {
+  from { opacity: 0; filter: blur(12px); transform: translateY(16px); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+@keyframes rk-rv-flip {
+  from { opacity: 0; transform: perspective(900px) rotateX(24deg) translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rk-parallax {
+  from { translate: 0 var(--parallax, 60px); }
+  to { translate: 0 calc(var(--parallax, 60px) * -1); }
+}
+@keyframes rk-page-out {
+  to { opacity: 0; transform: translateY(-8px) scale(0.99); filter: blur(4px); }
+}
+@keyframes rk-page-in {
+  from { opacity: 0; transform: translateY(14px); filter: blur(4px); }
+}
+
+/* page enter (route templates). Browsers with view transitions get the
+   crossfade below instead, so the page does not animate twice. */
 .page-enter {
   animation: rk-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@supports (view-transition-name: none) {
+  .page-enter {
+    animation: none;
+  }
+}
+::view-transition-old(.page-out) {
+  animation: rk-page-out 0.2s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(.page-in) {
+  animation: rk-page-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
 }
 
 /* children appear one after another */
@@ -296,13 +353,104 @@ h2 {
 }
 
 /* scroll reveal (components/motion/reveal.tsx): CSS scroll-driven, no JS.
-   Unsupported browsers show the content without animation. */
+   Unsupported browsers show the content without animation, so nothing can stay hidden.
+   [data-reveal-children] reveals each child on its own, which staggers rows naturally. */
 @supports (animation-timeline: view()) {
-  [data-reveal] {
-    animation: rk-fade-up linear both;
+  [data-reveal],
+  [data-reveal-children] > * {
+    animation: rk-rv-up linear both;
     animation-timeline: view();
-    animation-range: entry 0% entry 35%;
+    animation-range: entry 0% entry 45%;
   }
+  [data-reveal="left"] { animation-name: rk-rv-left; }
+  [data-reveal="right"] { animation-name: rk-rv-right; }
+  [data-reveal="zoom"],
+  [data-reveal-children="zoom"] > * { animation-name: rk-rv-zoom; }
+  [data-reveal="blur"],
+  [data-reveal-children="blur"] > * { animation-name: rk-rv-blur; }
+  [data-reveal="flip"],
+  [data-reveal-children="flip"] > * { animation-name: rk-rv-flip; }
+
+  /* decorative layers drift slower than the page */
+  [data-parallax] {
+    animation: rk-parallax linear both;
+    animation-timeline: view();
+    animation-range: cover;
+  }
+
+  /* reading progress bar (marketing layout) */
+  .scroll-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 60;
+    height: 3px;
+    transform-origin: 0 50%;
+    background: linear-gradient(90deg, var(--brand), var(--brand-ink));
+    box-shadow: 0 0 12px var(--glow);
+    animation: rk-grow-x linear both;
+    animation-timeline: scroll(root);
+    pointer-events: none;
+  }
+}
+@supports not (animation-timeline: view()) {
+  .scroll-progress { display: none; }
+}
+
+/* pointer effects (components/motion/pointer-effects.tsx sets the variables) */
+.cursor-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(560px circle at var(--mx, 50%) var(--my, -600px), var(--glow), transparent 65%);
+}
+[data-tilt] {
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+[data-magnetic] {
+  transition: translate 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* light sweep across primary buttons */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  translate: -120% 0;
+  transition: translate 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.btn-shine:hover::after {
+  translate: 120% 0;
+}
+
+/* animated underline for navigation links */
+.nav-link {
+  position: relative;
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -4px 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-link:hover::after,
+.nav-link[aria-current="page"]::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
 
 /* loading skeleton shimmer */
@@ -338,7 +486,23 @@ h2 {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  [data-reveal] {
+  [data-reveal],
+  [data-reveal-children] > *,
+  [data-parallax] {
+    animation: none !important;
+  }
+  [data-tilt] {
+    transform: none !important;
+  }
+  [data-magnetic] {
+    translate: none !important;
+  }
+  .scroll-progress,
+  .cursor-glow {
+    display: none;
+  }
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
     animation: none !important;
   }
 }
@@ -396,9 +560,15 @@ h2 {
     animation: none !important;
     transition: none !important;
   }
-  [data-reveal] {
+  [data-reveal],
+  [data-reveal-children] > * {
     opacity: 1 !important;
     transform: none !important;
+    filter: none !important;
+  }
+  .scroll-progress,
+  .cursor-glow {
+    display: none !important;
   }
   .report-section {
     break-inside: avoid;
