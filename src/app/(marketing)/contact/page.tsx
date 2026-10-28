@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, ChevronDown, CreditCard, GraduationCap, Handshake
 import { Card } from "@/components/ui/card";
 import { Reveal } from "@/components/motion/reveal";
 import { ContactForm, CopyEmailButton } from "@/components/marketing/contact-form";
+import { contactEmailConfig } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -134,7 +135,7 @@ export default function ContactPage() {
             <h2 className="text-xl font-semibold text-ink">Send a message</h2>
             <p className="mt-1 text-sm text-muted">Pick a topic, write your message, and we&apos;ll get it in our inbox.</p>
             <div className="mt-6">
-              <ContactForm email={CONTACT_EMAIL} />
+              <ContactForm email={CONTACT_EMAIL} directEmail={contactEmailConfig() !== null} />
             </div>
           </Card>
         </div>

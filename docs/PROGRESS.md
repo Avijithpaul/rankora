@@ -1,5 +1,13 @@
 # Rankora — Progress Log
 
+## Contact page and direct email (2026-10-28)
+
+* New `/contact` page: email card with copy and mail-app actions, message form, help topics and FAQ.
+* Direct sending through Resend when `RESEND_API_KEY` is set (details in INTEGRATIONS.md); otherwise the form falls back to `mailto:`.
+* Migration `0014_public_rate_limit`: `rate_limit_hit_key()` for signed-out endpoints, executable by the service role only.
+* Tests: `tests/unit/contact.test.ts` (validation, header-injection guard, Resend success and error paths) and a DB test for the keyed limiter's permissions.
+* Also in this round: new brand mark and favicons, functions moved to `sin1` next to the database.
+
 ## Phase 8 — SaaS Readiness (2026-10-28)
 
 Full report: [PRODUCTION-READINESS.md](PRODUCTION-READINESS.md).

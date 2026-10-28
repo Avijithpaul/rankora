@@ -254,6 +254,20 @@ describe("rate limiting", () => {
     expect(results).toEqual([true, true, true, false]);
   });
 
+  it("public (keyed) rate limit is service-role only and counts per key", async () => {
+    const hits = await asService(db, async (tx) => {
+      const out: boolean[] = [];
+      for (let i = 0; i < 3; i++) out.push((await rows<{ ok: boolean }>(tx.query(`select public.rate_limit_hit_key('contact:abc', 2, 3600) as ok`)))[0].ok);
+      out.push((await rows<{ ok: boolean }>(tx.query(`select public.rate_limit_hit_key('contact:other', 2, 3600) as ok`)))[0].ok);
+      return out;
+    });
+    expect(hits).toEqual([true, true, false, true]);
+    await expect(asService(db, (tx) => tx.query(`select public.rate_limit_hit_key('Bad Key!', 1, 60)`))).rejects.toThrow(/invalid rate limit arguments/);
+    for (const who of [null, ALICE]) {
+      await expect(asUser(db, who, (tx) => tx.query(`select public.rate_limit_hit_key('contact:x', 1, 60)`))).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("anon cannot spend rate-limit budget", async () => {
     await expect(asUser(db, null, (tx) => tx.query(`select public.rate_limit_hit('x', 1, 60)`))).rejects.toThrow(
       /permission denied/,

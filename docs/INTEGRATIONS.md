@@ -14,6 +14,7 @@ All provider calls happen **server-side**. Credentials live only in server envir
 | SERP rank checks | Phase 3 | paid provider, e.g. DataForSEO | same |
 | Backlinks | Phase 6 | paid provider, e.g. DataForSEO Backlinks | same |
 | AI content suggestions | Phase 5 | LLM API (Claude) | `ANTHROPIC_API_KEY` |
+| Contact form email | ✅ | Resend (free tier) | `RESEND_API_KEY`, optional `CONTACT_TO_EMAIL`, `CONTACT_FROM_EMAIL` |
 | Payments | Phase 7 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 
 ## Google Search Console + GA4 (implemented in Phase 4)
@@ -198,3 +199,17 @@ The rule-based Content Optimizer works without AI.
   (`is_demo = true`), with every metric row `source = 'demo'`. One per user; the owner can remove it from Organization settings.
 * The UI shows a purple banner on every page of the demo workspace and a **Demo Data** badge on every card, chart and table fed by demo rows.
 * The demo workspace is read-only for websites: real websites cannot be added to it (RLS + server action), and demo site settings are disabled.
+
+## Contact form email (Resend)
+
+* `/contact` posts to `sendContactMessageAction` (`src/lib/actions/contact.ts`) when `RESEND_API_KEY` is set; otherwise the form
+  composes the message in the visitor's mail app (`mailto:`) and nothing is sent server-side.
+* Validation (`src/lib/contact.ts`): name ≤ 80, a valid reply email, one of the listed topics, message 10–4,000 characters.
+  Header values (subject) are collapsed to one line so user input cannot inject headers.
+* The email goes to `CONTACT_TO_EMAIL` (default avijith.paul136@gmail.com) with `reply_to` set to the visitor, so replying
+  in the inbox answers them directly. Sent through the Resend REST API (`POST https://api.resend.com/emails`), 10 s timeout.
+* Abuse controls: a hidden honeypot field, 5 messages per sender per hour and 80 per day overall via
+  `rate_limit_hit_key` (service-role only; the sender key is a SHA-256 of the client IP, never the raw IP).
+* Sender: `onboarding@resend.dev` works without a domain but **only delivers to the email address of the Resend account**.
+  To send from your own address, verify a domain in Resend and set `CONTACT_FROM_EMAIL`.
+* Failures are logged to `system_events` (source `contact`) and the visitor is asked to email directly.

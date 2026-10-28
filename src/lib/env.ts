@@ -46,6 +46,21 @@ export function providerConfig() {
   };
 }
 
+/**
+ * Contact form email via Resend. Without RESEND_API_KEY the form falls back to the visitor's
+ * mail app (mailto). The default sender only works for the Resend account's own address
+ * until a domain is verified in Resend.
+ */
+export function contactEmailConfig(): { apiKey: string; to: string; from: string } | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    to: process.env.CONTACT_TO_EMAIL || "avijith.paul136@gmail.com",
+    from: process.env.CONTACT_FROM_EMAIL || "Rankora <onboarding@resend.dev>",
+  };
+}
+
 /** Optional AI suggestions (Content Optimizer). Without a key the feature is shown as not connected. */
 export function aiConfig(): { apiKey: string; model: string } | null {
   const apiKey = process.env.ANTHROPIC_API_KEY;
