@@ -17,6 +17,52 @@ Browser ──► Next.js 16 (App Router, Vercel)
                     Target websites (crawler, SSRF-guarded)
 ```
 
+### Product data flow
+
+![Rankora architecture](architecture.svg)
+
+```
+                         RANKORA
+              Analyze • Fix • Optimize • Grow
+
+  DATA SOURCES
+  ┌──────────────┬──────────────┬──────────────┬──────────────┐
+  │ Your Website │ Google       │ Google       │ DataForSEO   │
+  │ (Crawler)    │ GSC + GA4    │ PageSpeed    │ Keywords,    │
+  │              │ (read-only)  │ Insights     │ SERP, Links  │
+  └──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┘
+         └──────────────┴──────┬───────┴──────────────┘
+                               ▼
+              Rankora DB  (Supabase Postgres + RLS,
+                           multi-tenant per organization)
+                               │
+   ┌──────────┬──────────┬─────┴─────┬───────────┬────────────┐
+   ▼          ▼          ▼           ▼           ▼            ▼
+ SEO Audit  Keywords   Rank       Analytics   Competitors   Content
+ (issues,   Research   Tracker    (top pages, & Backlinks   Optimizer
+  score)                          traffic)                  (AI suggestions)
+   │          │          │           │           │            │
+   └──────────┴──────────┴─────┬─────┴───────────┴────────────┘
+                               ▼
+                    SEO Tasks  (assign, track, done)
+                               │
+                               ▼
+              Progress Reports (HTML / print / CSV / JSON)
+              ← also reads scores, rankings and traffic directly
+
+  PLATFORM LAYER (all modules)
+  Auth (email, Google, GitHub) • Organizations & roles • Plans & usage limits
+  Notifications • Activity log • Admin monitoring • Scheduled jobs (cron)
+
+  HOSTING
+  Next.js app on Vercel  ←→  Supabase (database, auth)
+```
+
+- Every module stores its results in the database; nothing is read live from a provider during page render.
+- Each module produces its own recommendations (audit issues, keyword opportunities, content suggestions); any of them can be turned into an SEO task.
+- Reports read task progress *and* the underlying scores, rankings and traffic.
+- AI output in the Content Optimizer is labelled as a suggestion and is never published automatically.
+
 ### Tenancy model
 
 `auth.users → organization_members (role) → organizations → websites → all SEO data`

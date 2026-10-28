@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif">
+  <title>Rankora architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5f7f84"/>
+    </marker>
+    <linearGradient id="db" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f8f7f"/>
+      <stop offset="1" stop-color="#2ec4ad"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="960" fill="#0b1416"/>
+
+  <!-- title -->
+  <text x="600" y="52" text-anchor="middle" font-size="30" font-weight="800" fill="#ffffff" letter-spacing="2">RANKORA</text>
+  <text x="600" y="80" text-anchor="middle" font-size="14" fill="#2ec4ad" letter-spacing="3">ANALYZE • FIX • OPTIMIZE • GROW</text>
+
+  <!-- section labels -->
+  <g font-size="11" font-weight="700" fill="#6f8a8e" letter-spacing="2">
+    <text x="20" y="112">DATA SOURCES</text>
+    <text x="20" y="382">MODULES</text>
+    <text x="20" y="770">PLATFORM LAYER (ALL MODULES)</text>
+    <text x="20" y="878">HOSTING</text>
+  </g>
+
+  <!-- data sources -->
+  <g>
+    <rect x="20" y="122" width="265" height="72" rx="12" fill="#121f22" stroke="#5b8def" stroke-width="1.5"/>
+    <text x="152.5" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">Your Website</text>
+    <text x="152.5" y="174" text-anchor="middle" font-size="12" fill="#9fb3b6">Crawler (SSRF-guarded)</text>
+
+    <rect x="318" y="122" width="265" height="72" rx="12" fill="#121f22" stroke="#5b8def" stroke-width="1.5"/>
+    <text x="450.5" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">Google GSC + GA4</text>
+    <text x="450.5" y="174" text-anchor="middle" font-size="12" fill="#9fb3b6">Read-only OAuth</text>
+
+    <rect x="617" y="122" width="265" height="72" rx="12" fill="#121f22" stroke="#5b8def" stroke-width="1.5"/>
+    <text x="749.5" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">PageSpeed Insights</text>
+    <text x="749.5" y="174" text-anchor="middle" font-size="12" fill="#9fb3b6">Performance, Core Web Vitals</text>
+
+    <rect x="915" y="122" width="265" height="72" rx="12" fill="#121f22" stroke="#5b8def" stroke-width="1.5"/>
+    <text x="1047.5" y="152" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">DataForSEO</text>
+    <text x="1047.5" y="174" text-anchor="middle" font-size="12" fill="#9fb3b6">Keywords, SERP, backlinks</text>
+  </g>
+
+  <!-- sources -> db -->
+  <g stroke="#5f7f84" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="152.5" y1="194" x2="380" y2="252"/>
+    <line x1="450.5" y1="194" x2="520" y2="252"/>
+    <line x1="749.5" y1="194" x2="680" y2="252"/>
+    <line x1="1047.5" y1="194" x2="820" y2="252"/>
+  </g>
+
+  <!-- database -->
+  <rect x="300" y="254" width="600" height="80" rx="14" fill="url(#db)"/>
+  <text x="600" y="287" text-anchor="middle" font-size="20" font-weight="800" fill="#06201c">Rankora DB</text>
+  <text x="600" y="312" text-anchor="middle" font-size="13" fill="#06201c">Supabase Postgres • Row Level Security • multi-tenant per organization</text>
+
+  <!-- db -> modules -->
+  <g stroke="#5f7f84" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="340" y1="334" x2="105" y2="390"/>
+    <line x1="420" y1="334" x2="303" y2="390"/>
+    <line x1="540" y1="334" x2="501" y2="390"/>
+    <line x1="660" y1="334" x2="699" y2="390"/>
+    <line x1="780" y1="334" x2="897" y2="390"/>
+    <line x1="860" y1="334" x2="1095" y2="390"/>
+  </g>
+
+  <!-- modules -->
+  <g>
+    <rect x="20" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="105" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">SEO Audit</text>
+    <text x="105" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">Issues, health score</text>
+
+    <rect x="218" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="303" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Keyword Research</text>
+    <text x="303" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">Volume, difficulty</text>
+
+    <rect x="416" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="501" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Rank Tracker</text>
+    <text x="501" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">Daily positions</text>
+
+    <rect x="614" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="699" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Analytics</text>
+    <text x="699" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">Top pages, traffic</text>
+
+    <rect x="812" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="897" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Competitors</text>
+    <text x="897" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">and backlinks</text>
+
+    <rect x="1010" y="392" width="170" height="84" rx="12" fill="#122326" stroke="#2ec4ad" stroke-width="1.5"/>
+    <text x="1095" y="426" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Content Optimizer</text>
+    <text x="1095" y="448" text-anchor="middle" font-size="12" fill="#9fb3b6">AI suggestions only</text>
+  </g>
+
+  <!-- modules -> tasks -->
+  <g stroke="#5f7f84" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="105" y1="476" x2="430" y2="534"/>
+    <line x1="303" y1="476" x2="500" y2="534"/>
+    <line x1="501" y1="476" x2="570" y2="534"/>
+    <line x1="699" y1="476" x2="630" y2="534"/>
+    <line x1="897" y1="476" x2="700" y2="534"/>
+    <line x1="1095" y1="476" x2="770" y2="534"/>
+  </g>
+
+  <!-- tasks -->
+  <rect x="400" y="536" width="400" height="66" rx="12" fill="#2a2210" stroke="#f5b544" stroke-width="1.5"/>
+  <text x="600" y="564" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">SEO Tasks</text>
+  <text x="600" y="586" text-anchor="middle" font-size="12" fill="#e8cf9a">Assign • track • mark done</text>
+
+  <line x1="600" y1="602" x2="600" y2="646" stroke="#5f7f84" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- reports -->
+  <rect x="350" y="648" width="500" height="72" rx="12" fill="#0f2a20" stroke="#34d399" stroke-width="1.5"/>
+  <text x="600" y="678" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">Progress Reports</text>
+  <text x="600" y="700" text-anchor="middle" font-size="12" fill="#a7e3c8">HTML • print / PDF • CSV • JSON</text>
+
+  <!-- modules read directly by reports -->
+  <g stroke="#34d399" stroke-width="1.3" stroke-dasharray="5 5" fill="none" opacity="0.7" marker-end="url(#arrow)">
+    <path d="M 60 476 V 684 H 348"/>
+    <path d="M 1140 476 V 684 H 852"/>
+  </g>
+  <text x="200" y="676" text-anchor="middle" font-size="11" fill="#7fcfb0">scores, rankings, traffic</text>
+  <text x="1000" y="676" text-anchor="middle" font-size="11" fill="#7fcfb0">scores, rankings, traffic</text>
+
+  <!-- platform layer -->
+  <rect x="20" y="780" width="1160" height="72" rx="12" fill="#111b1d" stroke="#3a4f53" stroke-width="1.2"/>
+  <g font-size="13" fill="#d5e1e3" text-anchor="middle">
+    <text x="135" y="812">Auth</text>
+    <text x="135" y="832" font-size="11" fill="#8ea3a6">Email, Google, GitHub</text>
+    <text x="355" y="812">Organizations &amp; roles</text>
+    <text x="355" y="832" font-size="11" fill="#8ea3a6">Owner, admin, member, viewer</text>
+    <text x="590" y="812">Plans &amp; usage limits</text>
+    <text x="590" y="832" font-size="11" fill="#8ea3a6">Enforced in the database</text>
+    <text x="820" y="812">Notifications &amp; activity log</text>
+    <text x="820" y="832" font-size="11" fill="#8ea3a6">Admin monitoring</text>
+    <text x="1050" y="812">Scheduled jobs</text>
+    <text x="1050" y="832" font-size="11" fill="#8ea3a6">Crawls, syncs, rank checks</text>
+  </g>
+
+  <!-- hosting -->
+  <rect x="300" y="888" width="250" height="52" rx="12" fill="#111b1d" stroke="#3a4f53" stroke-width="1.2"/>
+  <text x="425" y="919" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Next.js app on Vercel</text>
+  <rect x="650" y="888" width="250" height="52" rx="12" fill="#111b1d" stroke="#3a4f53" stroke-width="1.2"/>
+  <text x="775" y="919" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Supabase (DB + Auth)</text>
+  <line x1="552" y1="914" x2="648" y2="914" stroke="#5f7f84" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+</svg>
