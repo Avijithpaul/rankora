@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -158,7 +159,24 @@ export default function ProjectDocsPage() {
         <h2 id="architecture" className="text-2xl font-semibold">
           Architecture at a glance
         </h2>
-        <div className="mt-4 grid gap-3 text-sm md:grid-cols-[1fr_auto_1.4fr_auto_1fr] md:items-stretch">
+        <figure className="mt-4 overflow-hidden rounded-2xl border border-line bg-[#0b1416] shadow-[var(--shadow-card)]">
+          <a href="/architecture.svg" target="_blank" rel="noopener" title="Open the diagram full size">
+            <Image
+              src="/architecture.svg"
+              alt="Rankora data flow: your website crawler, Google Search Console and GA4, PageSpeed Insights and DataForSEO feed the Rankora database (Supabase Postgres with row level security). Six modules — SEO audit, keyword research, rank tracker, analytics, competitors and backlinks, and the content optimizer — produce SEO tasks, which feed progress reports. A platform layer provides auth, organizations and roles, plans and usage limits, notifications and scheduled jobs; the app runs on Vercel with Supabase."
+              width={1200}
+              height={960}
+              unoptimized
+              priority
+              className="h-auto w-full"
+            />
+          </a>
+          <figcaption className="border-t border-line bg-surface px-4 py-3 text-xs text-muted">
+            Product data flow — from data sources to tasks and reports. Click to open full size.
+          </figcaption>
+        </figure>
+        <h3 className="mt-8 text-lg font-semibold">Request path</h3>
+        <div className="mt-3 grid gap-3 text-sm md:grid-cols-[1fr_auto_1.4fr_auto_1fr] md:items-stretch">
           <div className="rounded-lg border border-line bg-surface p-4">
             <p className="font-semibold">Browser</p>
             <p className="mt-1 text-muted">HTML from Server Components, small Client Components for forms and charts. No secrets.</p>
